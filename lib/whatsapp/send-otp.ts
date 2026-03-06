@@ -1,4 +1,4 @@
-import { sendWhatsAppText } from "@/lib/whatsapp/evolution";
+import { sendWhatsAppText } from "@/lib/whatsapp/meta-cloud-api";
 
 export async function sendOtpViaWhatsApp(
   phone: string,
