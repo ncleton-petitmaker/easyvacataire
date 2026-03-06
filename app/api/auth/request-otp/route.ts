@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify phone belongs to an active intervenant or admin
+    // Verify phone belongs to an active intervenant, admin, or super_admin
     const { data: intervenant } = await supabase
       .from("intervenants")
       .select("id")
@@ -41,7 +41,17 @@ export async function POST(req: NextRequest) {
       .eq("is_active", true)
       .limit(1);
 
-    if (!intervenant || intervenant.length === 0) {
+    const { data: superAdmin } = await supabase
+      .from("super_admins")
+      .select("id")
+      .eq("phone", phone)
+      .eq("is_active", true)
+      .limit(1);
+
+    if (
+      (!intervenant || intervenant.length === 0) &&
+      (!superAdmin || superAdmin.length === 0)
+    ) {
       return NextResponse.json(
         { error: "Numero non reconnu" },
         { status: 400 }

@@ -1,15 +1,18 @@
 easyvacataire.fr, www.easyvacataire.fr {
-	# Next.js app
-	handle /api/auth/* {
+	# Supabase GoTrue auth (not /api/auth which is Next.js OTP)
+	handle /auth/v1/* {
 		reverse_proxy supabase-kong:8000
 	}
-	handle /auth/* {
+	# Supabase PostgREST
+	handle /rest/v1/* {
 		reverse_proxy supabase-kong:8000
 	}
-	handle /rest/* {
-		reverse_proxy supabase-kong:8000
-	}
+	# Everything else → Next.js (including /api/auth/request-otp, /api/auth/verify-otp)
 	handle {
 		reverse_proxy nextjs-app:3000
 	}
+}
+
+api.easyvacataire.fr {
+	reverse_proxy evolution:8080
 }

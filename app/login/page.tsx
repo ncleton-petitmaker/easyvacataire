@@ -57,7 +57,9 @@ export default function LoginPage() {
       });
 
       // Redirect based on role
-      if (data.role === "admin") {
+      if (data.role === "super_admin") {
+        window.location.href = "/super-admin";
+      } else if (data.role === "admin") {
         window.location.href = "/admin/creneaux";
       } else {
         window.location.href = "/mes/creneaux";

@@ -1,0 +1,44 @@
+import Link from "next/link";
+
+const navItems = [
+  { href: "/super-admin", label: "Etablissements" },
+];
+
+export default function SuperAdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <aside className="w-64 border-r border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mb-2">
+          <img src="/logo.svg" alt="EasyVacataire" className="h-6" />
+        </div>
+        <p className="mb-6 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          Super Admin
+        </p>
+        <nav className="space-y-1">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="block rounded-lg px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="mt-auto pt-8">
+          <a
+            href="/api/auth/logout"
+            className="block rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+          >
+            Deconnexion
+          </a>
+        </div>
+      </aside>
+      <main className="flex-1 p-8">{children}</main>
+    </div>
+  );
+}

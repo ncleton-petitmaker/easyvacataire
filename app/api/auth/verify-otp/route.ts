@@ -96,9 +96,15 @@ export async function POST(request: Request) {
       authUser = created.user;
     }
 
-    // Link intervenant.user_id if not already set
+    // Link user_id if not already set (intervenant or super_admin)
     await sb
       .from("intervenants")
+      .update({ user_id: authUser.id })
+      .eq("phone", phone)
+      .is("user_id", null);
+
+    await sb
+      .from("super_admins")
       .update({ user_id: authUser.id })
       .eq("phone", phone)
       .is("user_id", null);
@@ -132,20 +138,34 @@ export async function POST(request: Request) {
       );
     }
 
-    // Determine role
-    const { data: intervenant } = await sb
-      .from("intervenants")
-      .select("role")
+    // Determine role: super_admin > admin > intervenant
+    const { data: superAdmin } = await sb
+      .from("super_admins")
+      .select("id")
       .eq("phone", phone)
       .eq("is_active", true)
       .limit(1)
       .single();
 
+    let role = "intervenant";
+    if (superAdmin) {
+      role = "super_admin";
+    } else {
+      const { data: intervenant } = await sb
+        .from("intervenants")
+        .select("role")
+        .eq("phone", phone)
+        .eq("is_active", true)
+        .limit(1)
+        .single();
+      if (intervenant?.role === "admin") role = "admin";
+    }
+
     return NextResponse.json({
       success: true,
       access_token: sessionData.session.access_token,
       refresh_token: sessionData.session.refresh_token,
-      role: intervenant?.role || "intervenant",
+      role,
     });
   } catch (err) {
     console.error("verify-otp error:", err);
