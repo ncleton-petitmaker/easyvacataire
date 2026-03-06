@@ -1,0 +1,52 @@
+##############################################################################
+# Dev local — Evolution API uniquement
+# Supabase tourne via `supabase start` (CLI)
+# Usage: docker compose up -d
+##############################################################################
+
+services:
+  evolution:
+    image: atendai/evolution-api:v2.2.3
+    container_name: univ-evolution
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:-changeme}
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://postgres:postgres@evolution-db:5432/evolution
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - WEBHOOK_GLOBAL_URL=http://host.docker.internal:3000/api/whatsapp-webhook
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=true
+      - WEBHOOK_EVENTS=MESSAGES_UPSERT
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on:
+      - evolution-db
+    networks:
+      - univ-dev
+
+  evolution-db:
+    image: postgres:16-alpine
+    container_name: univ-evolution-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evolution
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - evolution_db:/var/lib/postgresql/data
+    networks:
+      - univ-dev
+
+volumes:
+  evolution_instances:
+  evolution_db:
+
+networks:
+  univ-dev:
+    name: univ-dev

@@ -1,0 +1,16 @@
+{
+  "name": "EasyVacataire",
+  "short_name": "EasyVacataire",
+  "description": "Simplifiez la gestion de vos intervenants vacataires en université",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAF9",
+  "theme_color": "#4243C4",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

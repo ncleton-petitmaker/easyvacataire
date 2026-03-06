@@ -1,0 +1,15 @@
+easyvacataire.fr, www.easyvacataire.fr {
+	# Next.js app
+	handle /api/auth/* {
+		reverse_proxy supabase-kong:8000
+	}
+	handle /auth/* {
+		reverse_proxy supabase-kong:8000
+	}
+	handle /rest/* {
+		reverse_proxy supabase-kong:8000
+	}
+	handle {
+		reverse_proxy nextjs-app:3000
+	}
+}

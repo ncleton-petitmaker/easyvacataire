@@ -1,0 +1,57 @@
+name: "Feature Request"
+description: "Proposer une nouvelle fonctionnalité"
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de proposer une amélioration ! Décrivez votre idée ci-dessous.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problème lié
+      description: "Décrivez le problème que cette fonctionnalité résoudrait. Ex : *Je suis toujours frustré quand...*"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution proposée
+      description: Décrivez la solution que vous aimeriez voir implémentée.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives envisagées
+      description: Avez-vous envisagé d'autres solutions ? Lesquelles ?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Périmètre
+      options:
+        - Dashboard admin
+        - Dashboard intervenant
+        - Bot WhatsApp
+        - Base de connaissances (RAG)
+        - Matching / disponibilités
+        - Authentification
+        - Déploiement / infra
+        - Autre
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Contexte additionnel
+      description: Captures d'écran, maquettes, liens vers des exemples, etc.
+    validations:
+      required: false

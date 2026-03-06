@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions et discussions
+    url: https://github.com/ncleton-petitmaker/easyvacataire/discussions
+    about: "Posez vos questions ici plutôt que d'ouvrir une issue."
