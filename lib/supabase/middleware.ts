@@ -41,10 +41,12 @@ export async function updateSession(request: NextRequest) {
   const isPublic = publicPaths.some((p) => pathname.startsWith(p));
 
   if (!user && !isPublic) {
+    console.log("[middleware] REDIRECTING to /login (user is null, path is protected)");
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
+  console.log("[middleware] NOT redirecting, user:", !!user, "isPublic:", isPublic);
 
   // Role-based route protection (from user_metadata)
   if (user) {
