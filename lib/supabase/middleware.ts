@@ -37,8 +37,9 @@ export async function updateSession(request: NextRequest) {
   console.log("[middleware]", pathname, "user:", user?.id ?? "null", "role:", user?.user_metadata?.role ?? "none");
 
   // Public routes that don't require auth
-  const publicPaths = ["/", "/login", "/api/auth", "/api/whatsapp-webhook", "/api/whatsapp-meta-webhook", "/api/cron", "/api/chat-agent", "/api/conversations", "/dispos", "/conditions-utilisation", "/politique-de-confidentialite", "/sitemap.xml", "/manifest.json"];
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p));
+  const publicPrefixes = ["/login", "/api/auth", "/api/whatsapp-webhook", "/api/whatsapp-meta-webhook", "/api/cron", "/api/chat-agent", "/api/conversations", "/dispos", "/conditions-utilisation", "/politique-de-confidentialite"];
+  const publicExact = ["/", "/sitemap.xml", "/manifest.json"];
+  const isPublic = publicExact.includes(pathname) || publicPrefixes.some((p) => pathname.startsWith(p));
 
   if (!user && !isPublic) {
     console.log("[middleware] REDIRECTING to /login (user is null, path is protected)");
