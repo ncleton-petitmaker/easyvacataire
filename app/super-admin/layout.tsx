@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Building2, LayoutDashboard, LogOut, ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/super-admin", label: "Etablissements" },
+  { href: "/super-admin", label: "Établissements", icon: Building2 },
 ];
 
 export default function SuperAdminLayout({
@@ -9,36 +14,70 @@ export default function SuperAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
   return (
-    <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <aside className="w-64 border-r border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mb-2">
-          <img src="/logo.svg" alt="EasyVacataire" className="h-6" />
+    <div className="flex h-dvh">
+      <aside
+        className="flex w-64 flex-col text-white"
+        style={{
+          background: "linear-gradient(180deg, #1A1F2E 0%, #141820 100%)",
+        }}
+      >
+        {/* Logo + Badge */}
+        <div className="px-6 pt-6 pb-2">
+          <img src="/logo.svg" alt="EasyVacataire" className="h-6 brightness-0 invert" />
+          <span className="mt-2 inline-block rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+            Super Admin
+          </span>
         </div>
-        <p className="mb-6 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-          Super Admin
-        </p>
-        <nav className="space-y-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="block rounded-lg px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              {item.label}
-            </Link>
-          ))}
+
+        <div className="mx-4 my-3 h-px bg-white/10" />
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 px-3">
+          {navItems.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/super-admin" &&
+                pathname.startsWith(item.href + "/"));
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  isActive
+                    ? "border border-[#4243C4]/30 bg-[#4243C4]/20 text-white"
+                    : "text-white/70 hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <Icon className="size-4 shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
-        <div className="mt-auto pt-8">
+
+        <div className="mx-4 my-3 h-px bg-white/10" />
+
+        {/* Footer */}
+        <div className="space-y-1 px-3 pb-4">
           <a
             href="/api/auth/logout"
-            className="block rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
           >
-            Deconnexion
+            <LogOut className="size-4 shrink-0" />
+            <span>Déconnexion</span>
           </a>
         </div>
       </aside>
-      <main className="flex-1 p-8">{children}</main>
+
+      <main className="flex-1 overflow-y-auto bg-[#FAFAF9] p-6 lg:p-8">
+        {children}
+      </main>
     </div>
   );
 }

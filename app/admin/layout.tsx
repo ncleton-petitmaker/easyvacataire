@@ -11,17 +11,8 @@ import {
   Brain,
   MessageSquare,
   LogOut,
-  UserCircle,
+  Shield,
 } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
@@ -43,82 +34,63 @@ export default function AdminLayout({
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <aside className="flex w-64 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="flex h-dvh">
+      <aside
+        className="flex w-64 flex-col text-white"
+        style={{
+          background: "linear-gradient(180deg, #1A1F2E 0%, #141820 100%)",
+        }}
+      >
         {/* Logo */}
         <div className="px-6 pt-6 pb-2">
-          <img src="/logo.svg" alt="EasyVacataire" className="h-6" />
-          <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <img src="/logo.svg" alt="EasyVacataire" className="h-6 brightness-0 invert" />
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-white/40">
             Administration
           </p>
         </div>
 
-        <Separator className="mx-4 my-3 w-auto" />
+        <div className="mx-4 my-3 h-px bg-white/10" />
 
         {/* Navigation */}
-        <ScrollArea className="flex-1 px-3">
-          <TooltipProvider>
-            <nav className="space-y-1 py-1">
-              {navItems.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  pathname.startsWith(item.href + "/");
-                const Icon = item.icon;
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3">
+          {navItems.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              pathname.startsWith(item.href + "/");
+            const Icon = item.icon;
 
-                return (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger
-                      render={
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            buttonVariants({
-                              variant: isActive ? "secondary" : "ghost",
-                              size: "lg",
-                            }),
-                            "w-full justify-start gap-3 font-medium",
-                            isActive
-                              ? "bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/20 dark:text-primary dark:hover:bg-primary/25"
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        />
-                      }
-                    >
-                      <Icon className="size-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      {item.label}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </nav>
-          </TooltipProvider>
-        </ScrollArea>
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  isActive
+                    ? "border border-[#4243C4]/30 bg-[#4243C4]/20 text-white"
+                    : "text-white/70 hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <Icon className="size-4 shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-        <Separator className="mx-4 my-3 w-auto" />
+        <div className="mx-4 my-3 h-px bg-white/10" />
 
-        {/* Utilisateur et déconnexion */}
-        <div className="px-3 pb-4 space-y-2">
-          <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-            <UserCircle className="size-5 text-muted-foreground" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">
-                Administrateur
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                Établissement
-              </p>
-            </div>
-          </div>
-
+        {/* Footer */}
+        <div className="space-y-1 px-3 pb-4">
+          <Link
+            href="/super-admin"
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-amber-400 transition-colors hover:bg-amber-500/10"
+          >
+            <Shield className="size-4 shrink-0" />
+            <span>Super Admin</span>
+          </Link>
           <a
             href="/api/auth/logout"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "lg" }),
-              "w-full justify-start gap-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
-            )}
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
           >
             <LogOut className="size-4 shrink-0" />
             <span>Déconnexion</span>
@@ -126,7 +98,9 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto p-8">{children}</main>
+      <main className="flex-1 overflow-y-auto bg-[#FAFAF9] p-6 lg:p-8">
+        {children}
+      </main>
       <Toaster position="top-right" richColors />
     </div>
   );
