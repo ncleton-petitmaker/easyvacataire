@@ -3,11 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Calendar, Clock, Info, LogOut, Menu, Loader2 } from "lucide-react";
+import { Calendar, Clock, Info, LogOut, Menu } from "lucide-react";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { useRole } from "@/lib/hooks/use-role";
 
 const navItems = [
   { href: "/mes/creneaux", label: "Mon planning", icon: Calendar },
@@ -73,22 +72,12 @@ export default function MesLayoutClient({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [role, roleLoading] = useRole("intervenant");
 
   async function handleLogout() {
     const supabase = createSupabaseBrowser();
     await supabase.auth.signOut();
-    localStorage.removeItem("easyvacataire_role");
     localStorage.removeItem("uniplanning_etablissement_id");
     router.push("/login");
-  }
-
-  if (roleLoading || role !== "intervenant") {
-    return (
-      <div className="flex h-dvh items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-[#4243C4]" />
-      </div>
-    );
   }
 
   return (

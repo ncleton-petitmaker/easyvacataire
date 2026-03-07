@@ -14,12 +14,10 @@ import {
   LogOut,
   Shield,
   Menu,
-  Loader2,
 } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { useRole } from "@/lib/hooks/use-role";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 
 const navItems = [
@@ -94,29 +92,21 @@ function SidebarContent({ pathname, onNav, onLogout, isSuperAdmin }: { pathname:
 }
 
 export default function AdminLayoutClient({
+  role,
   children,
 }: {
+  role: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [role, roleLoading] = useRole(["super_admin", "admin"]);
 
   async function handleLogout() {
     const supabase = createSupabaseBrowser();
     await supabase.auth.signOut();
-    localStorage.removeItem("easyvacataire_role");
     localStorage.removeItem("uniplanning_etablissement_id");
     router.push("/login");
-  }
-
-  if (roleLoading || !role || !["super_admin", "admin"].includes(role)) {
-    return (
-      <div className="flex h-dvh items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-[#4243C4]" />
-      </div>
-    );
   }
 
   return (

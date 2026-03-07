@@ -113,9 +113,6 @@ export default function LoginPage() {
         refresh_token: data.refresh_token,
       });
 
-      // Persist role for client-side routing
-      localStorage.setItem("easyvacataire_role", data.role);
-
       if (data.role === "super_admin") {
         window.location.href = "/super-admin";
       } else if (data.role === "admin") {

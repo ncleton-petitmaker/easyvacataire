@@ -3,16 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useEtablissementId } from "@/lib/hooks/use-etablissement";
 import { toast } from "sonner";
-import { useCalendarApp, ScheduleXCalendar } from "@schedule-x/react";
-import {
-  createViewDay,
-  createViewWeek,
-  createViewMonthGrid,
-} from "@schedule-x/calendar";
-import { createEventsServicePlugin } from "@schedule-x/events-service";
-import { createDragAndDropPlugin } from "@schedule-x/drag-and-drop";
-import { createEventModalPlugin } from "@schedule-x/event-modal";
-import "@schedule-x/theme-default/dist/index.css";
+import { Calendar } from "@/components/calendar/calendar";
+import type { CalendarEvent } from "@/components/calendar/types";
 import {
   CheckCircle2,
   AlertCircle,
@@ -119,9 +111,6 @@ export default function CreneauxPage() {
   const [selectedBesoinId, setSelectedBesoinId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  // Events service (stable ref)
-  const [eventsService] = useState(() => createEventsServicePlugin());
-
   const load = useCallback(async () => {
     if (!etablissementId) return;
     setLoading(true);
@@ -154,27 +143,17 @@ export default function CreneauxPage() {
   }, [load]);
 
   // Build calendar events from creneaux + besoins
-  const calendarEvents = useMemo(() => {
-    const events: {
-      id: string;
-      title: string;
-      start: string;
-      end: string;
-      calendarId: string;
-      _type: string;
-      _original?: Besoin | Creneau;
-    }[] = [];
+  const calendarEvents: CalendarEvent[] = useMemo(() => {
+    const events: CalendarEvent[] = [];
 
-    // Confirmed créneaux → green
+    // Confirmed creneaux → green
     for (const c of creneaux) {
       events.push({
         id: `creneau-${c.id}`,
         title: `${c.matieres?.name || "Cours"}${c.intervenants ? ` · ${c.intervenants.first_name} ${c.intervenants.last_name[0]}.` : ""}`,
-        start: `${c.date} ${c.heure_debut}`,
-        end: `${c.date} ${c.heure_fin}`,
-        calendarId: "confirmed",
-        _type: "creneau",
-        _original: c,
+        start: new Date(`${c.date}T${c.heure_debut}`),
+        end: new Date(`${c.date}T${c.heure_fin}`),
+        color: "emerald",
       });
     }
 
@@ -185,117 +164,14 @@ export default function CreneauxPage() {
       events.push({
         id: `besoin-${b.id}`,
         title: `${b.matieres?.name || "Besoin"}${hasMatch ? ` (${match!.intervenants.length} dispo)` : ""}`,
-        start: `${b.date} ${b.heure_debut}`,
-        end: `${b.date} ${b.heure_fin}`,
-        calendarId: hasMatch ? "with-match" : "no-match",
-        _type: "besoin",
-        _original: b,
+        start: new Date(`${b.date}T${b.heure_debut}`),
+        end: new Date(`${b.date}T${b.heure_fin}`),
+        color: hasMatch ? "indigo" : "amber",
       });
     }
 
     return events;
   }, [creneaux, besoins, matches]);
-
-  // Sync events to Schedule-X
-  useEffect(() => {
-    if (!eventsService || loading) return;
-    try {
-      eventsService.set(calendarEvents);
-    } catch {
-      // eventsService might not be ready yet
-    }
-  }, [calendarEvents, eventsService, loading]);
-
-  const calendar = useCalendarApp({
-    locale: "fr-FR",
-    firstDayOfWeek: 1,
-    defaultView: "week",
-    selectedDate: (globalThis as any).Temporal.Now.plainDateISO(),
-    views: [createViewDay(), createViewWeek(), createViewMonthGrid()],
-    plugins: [
-      eventsService,
-      createDragAndDropPlugin(),
-      createEventModalPlugin(),
-    ],
-    calendars: {
-      confirmed: {
-        colorName: "confirmed",
-        lightColors: {
-          main: "#10B981",
-          container: "#D1FAE5",
-          onContainer: "#065F46",
-        },
-        darkColors: {
-          main: "#34D399",
-          container: "#064E3B",
-          onContainer: "#D1FAE5",
-        },
-      },
-      "with-match": {
-        colorName: "with-match",
-        lightColors: {
-          main: "#4243C4",
-          container: "#E0E0F7",
-          onContainer: "#1E1F6E",
-        },
-        darkColors: {
-          main: "#6366E8",
-          container: "#2A2B6E",
-          onContainer: "#E0E0F7",
-        },
-      },
-      "no-match": {
-        colorName: "no-match",
-        lightColors: {
-          main: "#F59E0B",
-          container: "#FEF3C7",
-          onContainer: "#92400E",
-        },
-        darkColors: {
-          main: "#FBBF24",
-          container: "#78350F",
-          onContainer: "#FEF3C7",
-        },
-      },
-    },
-    dayBoundaries: { start: "07:00", end: "21:00" },
-    weekOptions: {
-      gridHeight: 700,
-      nDays: 6,
-      eventWidth: 95,
-    },
-    events: calendarEvents,
-    callbacks: {
-      onClickDateTime(dateTime) {
-        // Click on empty slot → open create dialog
-        const [date, time] = dateTime.split(" ");
-        const startH = parseInt(time.split(":")[0]);
-        const endH = startH + 2;
-        setCreateForm({
-          date,
-          heure_debut: time.substring(0, 5),
-          heure_fin: `${String(endH).padStart(2, "0")}:00`,
-          matiere_id: "",
-          salle: "",
-          notes: "",
-        });
-        setShowCreateDialog(true);
-      },
-      onEventClick(calendarEvent) {
-        // Click on event → if besoin, show match panel
-        const id = calendarEvent.id as string;
-        if (id.startsWith("besoin-")) {
-          const besoinId = id.replace("besoin-", "");
-          setSelectedBesoinId(besoinId);
-        }
-      },
-      onEventUpdate(updatedEvent) {
-        // Drag/resize → could update besoin date/time
-        // For now, just toast
-        toast.info("Déplacement non sauvegardé (fonctionnalité à venir)");
-      },
-    },
-  });
 
   // Match helpers
   function getMatchForBesoin(besoinId: string): MatchItem | undefined {
@@ -419,7 +295,28 @@ export default function CreneauxPage() {
             className="rounded-xl border border-border bg-card overflow-hidden"
             style={{ height: "calc(100vh - 220px)", minHeight: "400px" }}
           >
-            <ScheduleXCalendar calendarApp={calendar} />
+            <Calendar
+              events={calendarEvents}
+              onEventClick={(event) => {
+                if (event.id.startsWith("besoin-")) {
+                  const besoinId = event.id.replace("besoin-", "");
+                  setSelectedBesoinId(besoinId);
+                }
+              }}
+              onSlotClick={(date, hour) => {
+                const dateStr = format(date, "yyyy-MM-dd");
+                const endH = hour + 2;
+                setCreateForm({
+                  date: dateStr,
+                  heure_debut: `${String(hour).padStart(2, "0")}:00`,
+                  heure_fin: `${String(endH).padStart(2, "0")}:00`,
+                  matiere_id: "",
+                  salle: "",
+                  notes: "",
+                });
+                setShowCreateDialog(true);
+              }}
+            />
           </div>
         </div>
 
