@@ -412,20 +412,20 @@ export default function CreneauxPage() {
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col lg:flex-row gap-4">
         {/* Calendar */}
         <div className="flex-1 min-w-0">
           <div
             className="rounded-xl border border-border bg-card overflow-hidden"
-            style={{ height: "calc(100vh - 220px)" }}
+            style={{ height: "calc(100vh - 220px)", minHeight: "400px" }}
           >
             <ScheduleXCalendar calendarApp={calendar} />
           </div>
         </div>
 
-        {/* Match panel (right side) */}
+        {/* Match panel (right side on desktop, below on mobile) */}
         {selectedBesoin && (
-          <Card className="w-80 shrink-0 self-start sticky top-6">
+          <Card className="w-full lg:w-80 lg:shrink-0 lg:self-start lg:sticky lg:top-6">
             <CardContent className="p-4 space-y-4">
               <div className="flex items-start justify-between">
                 <div>

@@ -132,9 +132,9 @@ export default function ConversationsPage() {
         </p>
       </div>
 
-      <div className="flex gap-4" style={{ height: "calc(100vh - 200px)" }}>
+      <div className="flex flex-col lg:flex-row gap-4" style={{ height: "calc(100vh - 200px)" }}>
         {/* Panneau gauche : liste des conversations */}
-        <Card className="flex w-80 shrink-0 flex-col overflow-hidden">
+        <Card className="flex w-full lg:w-80 shrink-0 flex-col overflow-hidden max-h-[300px] lg:max-h-none">
           <CardHeader className="border-b pb-3">
             <CardTitle className="text-sm">Conversations</CardTitle>
             <div className="relative mt-2">
