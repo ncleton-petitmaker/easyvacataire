@@ -1,6 +1,33 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
 
 export function Navbar() {
+  const [user, setUser] = useState<{ role?: string } | null>(null);
+
+  useEffect(() => {
+    async function check() {
+      try {
+        const supabase = createSupabaseBrowser();
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) {
+          setUser({ role: data.user.user_metadata?.role });
+        }
+      } catch {
+        // not logged in
+      }
+    }
+    check();
+  }, []);
+
+  const dashboardHref = user?.role === "super_admin"
+    ? "/super-admin"
+    : user?.role === "admin"
+      ? "/admin/creneaux"
+      : "/mes/creneaux";
+
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-zinc-200/60 bg-[#FAFAF9]/80 backdrop-blur-lg">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -41,12 +68,21 @@ export function Navbar() {
             </svg>
             GitHub
           </a>
-          <Link
-            href="/login"
-            className="text-sm font-medium text-zinc-700 transition hover:text-zinc-900"
-          >
-            Connexion
-          </Link>
+          {user ? (
+            <Link
+              href={dashboardHref}
+              className="rounded-full bg-[#4243C4] px-4 py-1.5 text-sm font-medium text-white transition hover:bg-[#3234A0]"
+            >
+              Mon espace
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="text-sm font-medium text-zinc-700 transition hover:text-zinc-900"
+            >
+              Connexion
+            </Link>
+          )}
         </div>
       </div>
     </nav>
