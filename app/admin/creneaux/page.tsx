@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { MatchOverlay } from "@/components/match-overlay";
 
 type Creneau = {
   id: string;
@@ -110,6 +111,12 @@ export default function CreneauxPage() {
   // Match panel
   const [selectedBesoinId, setSelectedBesoinId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+
+  // Tinder-style match overlay
+  const [matchOverlay, setMatchOverlay] = useState<{
+    besoin: Besoin;
+    intervenant: { first_name: string; last_name: string; specialite: string | null };
+  } | null>(null);
 
   const load = useCallback(async () => {
     if (!etablissementId) return;
@@ -192,9 +199,19 @@ export default function CreneauxPage() {
         body: JSON.stringify({ besoin_id: besoinId, intervenant_id: intervenantId }),
       });
       if (res.ok) {
-        toast.success(`${name} assigné(e) avec succès`);
+        // Find the besoin and intervenant for the overlay
+        const besoin = besoins.find((b) => b.id === besoinId);
+        const match = matches.find((m) => m.besoin.id === besoinId);
+        const interv = match?.intervenants.find((i) => i.id === intervenantId);
+
         setSelectedBesoinId(null);
-        load();
+
+        if (besoin && interv) {
+          setMatchOverlay({ besoin, intervenant: interv });
+        } else {
+          toast.success(`${name} assigné(e) avec succès`);
+          load();
+        }
       } else {
         toast.error("Erreur lors de la confirmation");
       }
@@ -426,6 +443,25 @@ export default function CreneauxPage() {
           </Card>
         )}
       </div>
+
+      {/* Match overlay Tinder-style */}
+      {matchOverlay && (
+        <MatchOverlay
+          besoin={{
+            date: format(new Date(matchOverlay.besoin.date + "T00:00:00"), "EEEE d MMMM", { locale: fr }),
+            heure_debut: matchOverlay.besoin.heure_debut,
+            heure_fin: matchOverlay.besoin.heure_fin,
+            salle: matchOverlay.besoin.salle,
+            matiere: matchOverlay.besoin.matieres?.name,
+            matiereCode: matchOverlay.besoin.matieres?.code,
+          }}
+          intervenant={matchOverlay.intervenant}
+          onClose={() => {
+            setMatchOverlay(null);
+            load();
+          }}
+        />
+      )}
 
       {/* Create besoin dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
