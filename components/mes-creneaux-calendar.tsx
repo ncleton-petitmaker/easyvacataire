@@ -50,7 +50,7 @@ export default function MesCreneauxCalendar({
     locale: "fr-FR",
     firstDayOfWeek: 1,
     defaultView: "week",
-    selectedDate: format(new Date(), "yyyy-MM-dd"),
+    selectedDate: new Date().toISOString().slice(0, 10),
     views: [createViewDay(), createViewWeek(), createViewMonthGrid()],
     plugins: [eventsService],
     calendars: {
