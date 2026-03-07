@@ -26,31 +26,36 @@ export function CalendarHeader({
   onViewChange: (v: ViewMode) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-border bg-card px-4 py-2">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-card px-3 py-2">
+      {/* Navigation */}
+      <div className="flex items-center gap-1">
         <Button variant="outline" size="icon" className="size-8" onClick={onPrev}>
           <ChevronLeft className="size-4" />
         </Button>
         <Button variant="outline" size="icon" className="size-8" onClick={onNext}>
           <ChevronRight className="size-4" />
         </Button>
-        <Button variant="outline" size="sm" onClick={onToday}>
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onToday}>
           Aujourd&apos;hui
         </Button>
       </div>
 
-      <h2 className="text-sm font-semibold text-foreground">{label}</h2>
+      {/* Label */}
+      <h2 className="flex-1 text-center text-sm font-semibold text-foreground min-w-0 truncate">
+        {label}
+      </h2>
 
-      <div className="flex rounded-md border border-border bg-muted/50">
+      {/* View switcher */}
+      <div className="flex rounded-lg border border-border bg-muted/50 overflow-hidden">
         {(["day", "week", "month"] as ViewMode[]).map((v) => (
           <button
             key={v}
             onClick={() => onViewChange(v)}
-            className={`px-3 py-1 text-xs font-medium transition-colors ${
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
               view === v
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            } ${v === "day" ? "rounded-l-md" : v === "month" ? "rounded-r-md" : ""}`}
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
           >
             {VIEW_LABELS[v]}
           </button>
