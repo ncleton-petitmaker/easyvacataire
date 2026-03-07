@@ -1,42 +1,53 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useEtablissementId } from "@/lib/hooks/use-etablissement";
 import { toast } from "sonner";
+import { useCalendarApp, ScheduleXCalendar } from "@schedule-x/react";
 import {
-  format,
-  startOfWeek,
-  endOfWeek,
-  addWeeks,
-  subWeeks,
-  eachDayOfInterval,
-  isSameDay,
-} from "date-fns";
-import { fr } from "date-fns/locale";
+  createViewDay,
+  createViewWeek,
+  createViewMonthGrid,
+} from "@schedule-x/calendar";
+import { createEventsServicePlugin } from "@schedule-x/events-service";
+import { createDragAndDropPlugin } from "@schedule-x/drag-and-drop";
+import { createEventModalPlugin } from "@schedule-x/event-modal";
+import "@schedule-x/theme-default/dist/index.css";
 import {
-  ChevronLeft,
-  ChevronRight,
-  CalendarDays,
-  CalendarClock,
-  MapPin,
-  User,
   CheckCircle2,
   AlertCircle,
   Clock,
+  MapPin,
+  CalendarDays,
   X,
   Loader2,
+  User,
   BookOpen,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 type Creneau = {
   id: string;
@@ -83,77 +94,218 @@ type MatchItem = {
   }[];
 };
 
+type Matiere = { id: string; name: string; code: string | null };
+
 export default function CreneauxPage() {
   const [etablissementId] = useEtablissementId();
   const [creneaux, setCreneaux] = useState<Creneau[]>([]);
   const [besoins, setBesoins] = useState<Besoin[]>([]);
   const [matches, setMatches] = useState<MatchItem[]>([]);
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [matieres, setMatieres] = useState<Matiere[]>([]);
   const [loading, setLoading] = useState(true);
-  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  // Create besoin dialog
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    date: "",
+    heure_debut: "08:00",
+    heure_fin: "10:00",
+    matiere_id: "",
+    salle: "",
+    notes: "",
+  });
 
   // Match panel
   const [selectedBesoinId, setSelectedBesoinId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
-  const days = eachDayOfInterval({ start: weekStart, end: weekEnd }).slice(0, 6);
-
-  // Stable string keys to avoid infinite re-render loop
-  const fromStr = format(weekStart, "yyyy-MM-dd");
-  const toStr = format(weekEnd, "yyyy-MM-dd");
+  // Events service (stable ref)
+  const [eventsService] = useState(() => createEventsServicePlugin());
 
   const load = useCallback(async () => {
     if (!etablissementId) return;
     setLoading(true);
 
     try {
-      const [creneauxRes, besoinsRes, matchesRes] = await Promise.all([
-        fetch(`/api/creneaux?etablissement_id=${etablissementId}&from=${fromStr}&to=${toStr}`),
+      const [creneauxRes, besoinsRes, matchesRes, matieresRes] = await Promise.all([
+        fetch(`/api/creneaux?etablissement_id=${etablissementId}`),
         fetch(`/api/besoins?etablissement_id=${etablissementId}&status=ouvert`),
         fetch(`/api/matching?etablissement_id=${etablissementId}`),
+        fetch(`/api/matieres?etablissement_id=${etablissementId}`),
       ]);
 
       const creneauxData = await creneauxRes.json();
       const besoinsData = await besoinsRes.json();
       const matchesData = await matchesRes.json();
+      const matieresData = await matieresRes.json();
 
       if (Array.isArray(creneauxData)) setCreneaux(creneauxData);
       if (Array.isArray(besoinsData)) setBesoins(besoinsData);
       if (Array.isArray(matchesData)) setMatches(matchesData);
+      if (Array.isArray(matieresData)) setMatieres(matieresData);
     } catch {
       // silently fail
     }
     setLoading(false);
-  }, [etablissementId, fromStr, toStr]);
+  }, [etablissementId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const hours = Array.from({ length: 12 }, (_, i) => i + 8);
+  // Build calendar events from creneaux + besoins
+  const calendarEvents = useMemo(() => {
+    const events: {
+      id: string;
+      title: string;
+      start: string;
+      end: string;
+      calendarId: string;
+      _type: string;
+      _original?: Besoin | Creneau;
+    }[] = [];
 
-  function getItemsForDayHour(day: Date, hour: number) {
-    const dayStr = format(day, "yyyy-MM-dd");
+    // Confirmed créneaux → green
+    for (const c of creneaux) {
+      events.push({
+        id: `creneau-${c.id}`,
+        title: `${c.matieres?.name || "Cours"}${c.intervenants ? ` · ${c.intervenants.first_name} ${c.intervenants.last_name[0]}.` : ""}`,
+        start: `${c.date} ${c.heure_debut}`,
+        end: `${c.date} ${c.heure_fin}`,
+        calendarId: "confirmed",
+        _type: "creneau",
+        _original: c,
+      });
+    }
 
-    const dayCreneaux = creneaux.filter(
-      (c) => c.date === dayStr && parseInt(c.heure_debut.split(":")[0]) === hour
-    );
+    // Open besoins
+    for (const b of besoins) {
+      const match = matches.find((m) => m.besoin.id === b.id);
+      const hasMatch = (match?.intervenants.length ?? 0) > 0;
+      events.push({
+        id: `besoin-${b.id}`,
+        title: `${b.matieres?.name || "Besoin"}${hasMatch ? ` (${match!.intervenants.length} dispo)` : ""}`,
+        start: `${b.date} ${b.heure_debut}`,
+        end: `${b.date} ${b.heure_fin}`,
+        calendarId: hasMatch ? "with-match" : "no-match",
+        _type: "besoin",
+        _original: b,
+      });
+    }
 
-    const dayBesoins = besoins.filter(
-      (b) =>
-        b.date === dayStr &&
-        parseInt(b.heure_debut.split(":")[0]) === hour &&
-        b.status === "ouvert"
-    );
+    return events;
+  }, [creneaux, besoins, matches]);
 
-    return { creneaux: dayCreneaux, besoins: dayBesoins };
-  }
+  // Sync events to Schedule-X
+  useEffect(() => {
+    if (!eventsService || loading) return;
+    try {
+      eventsService.set(calendarEvents);
+    } catch {
+      // eventsService might not be ready yet
+    }
+  }, [calendarEvents, eventsService, loading]);
 
+  const calendar = useCalendarApp({
+    locale: "fr-FR",
+    firstDayOfWeek: 1,
+    defaultView: "week",
+    selectedDate: format(new Date(), "yyyy-MM-dd"),
+    views: [createViewDay(), createViewWeek(), createViewMonthGrid()],
+    plugins: [
+      eventsService,
+      createDragAndDropPlugin(),
+      createEventModalPlugin(),
+    ],
+    calendars: {
+      confirmed: {
+        colorName: "confirmed",
+        lightColors: {
+          main: "#10B981",
+          container: "#D1FAE5",
+          onContainer: "#065F46",
+        },
+        darkColors: {
+          main: "#34D399",
+          container: "#064E3B",
+          onContainer: "#D1FAE5",
+        },
+      },
+      "with-match": {
+        colorName: "with-match",
+        lightColors: {
+          main: "#4243C4",
+          container: "#E0E0F7",
+          onContainer: "#1E1F6E",
+        },
+        darkColors: {
+          main: "#6366E8",
+          container: "#2A2B6E",
+          onContainer: "#E0E0F7",
+        },
+      },
+      "no-match": {
+        colorName: "no-match",
+        lightColors: {
+          main: "#F59E0B",
+          container: "#FEF3C7",
+          onContainer: "#92400E",
+        },
+        darkColors: {
+          main: "#FBBF24",
+          container: "#78350F",
+          onContainer: "#FEF3C7",
+        },
+      },
+    },
+    dayBoundaries: { start: "07:00", end: "21:00" },
+    weekOptions: {
+      gridHeight: 700,
+      nDays: 6,
+      eventWidth: 95,
+    },
+    events: calendarEvents,
+    callbacks: {
+      onClickDateTime(dateTime) {
+        // Click on empty slot → open create dialog
+        const [date, time] = dateTime.split(" ");
+        const startH = parseInt(time.split(":")[0]);
+        const endH = startH + 2;
+        setCreateForm({
+          date,
+          heure_debut: time.substring(0, 5),
+          heure_fin: `${String(endH).padStart(2, "0")}:00`,
+          matiere_id: "",
+          salle: "",
+          notes: "",
+        });
+        setShowCreateDialog(true);
+      },
+      onEventClick(calendarEvent) {
+        // Click on event → if besoin, show match panel
+        const id = calendarEvent.id as string;
+        if (id.startsWith("besoin-")) {
+          const besoinId = id.replace("besoin-", "");
+          setSelectedBesoinId(besoinId);
+        }
+      },
+      onEventUpdate(updatedEvent) {
+        // Drag/resize → could update besoin date/time
+        // For now, just toast
+        toast.info("Déplacement non sauvegardé (fonctionnalité à venir)");
+      },
+    },
+  });
+
+  // Match helpers
   function getMatchForBesoin(besoinId: string): MatchItem | undefined {
     return matches.find((m) => m.besoin.id === besoinId);
   }
+
+  const selectedBesoin = selectedBesoinId
+    ? besoins.find((b) => b.id === selectedBesoinId)
+    : null;
+  const selectedMatch = selectedBesoinId ? getMatchForBesoin(selectedBesoinId) : null;
 
   async function handleConfirm(besoinId: string, intervenantId: string, name: string) {
     setConfirming(true);
@@ -176,28 +328,31 @@ export default function CreneauxPage() {
     setConfirming(false);
   }
 
-  function handleDateSelect(date: Date | undefined) {
-    if (date) {
-      setCurrentWeek(date);
-      setCalendarOpen(false);
+  async function handleCreateBesoin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!etablissementId) return;
+    try {
+      const res = await fetch("/api/besoins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          etablissement_id: etablissementId,
+          matiere_id: createForm.matiere_id || undefined,
+          date: createForm.date,
+          heure_debut: createForm.heure_debut,
+          heure_fin: createForm.heure_fin,
+          salle: createForm.salle || undefined,
+          notes: createForm.notes || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Besoin créé avec succès");
+      setShowCreateDialog(false);
+      load();
+    } catch {
+      toast.error("Impossible de créer le besoin");
     }
   }
-
-  // Stats
-  const weekBesoins = besoins.filter((b) => {
-    const from = format(weekStart, "yyyy-MM-dd");
-    const to = format(weekEnd, "yyyy-MM-dd");
-    return b.date >= from && b.date <= to;
-  });
-  const weekBesoinsWithMatch = weekBesoins.filter(
-    (b) => (getMatchForBesoin(b.id)?.intervenants.length ?? 0) > 0
-  );
-
-  // Selected besoin detail panel
-  const selectedMatch = selectedBesoinId ? getMatchForBesoin(selectedBesoinId) : null;
-  const selectedBesoin = selectedBesoinId
-    ? besoins.find((b) => b.id === selectedBesoinId)
-    : null;
 
   if (!etablissementId) {
     return (
@@ -213,234 +368,65 @@ export default function CreneauxPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <CalendarClock className="size-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Planning commun</h1>
-            <p className="text-sm text-muted-foreground">
-              Besoins, disponibilités et créneaux confirmés
-            </p>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Planning</h1>
+          <p className="text-sm text-muted-foreground">
+            Cliquez sur un créneau vide pour créer un besoin. Cliquez sur un besoin pour assigner un intervenant.
+          </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger
-              className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted transition-colors"
-            >
-              <CalendarDays className="size-4 text-muted-foreground" />
-              <span>
-                {format(weekStart, "d MMM", { locale: fr })} -{" "}
-                {format(weekEnd, "d MMM yyyy", { locale: fr })}
-              </span>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="center">
-              <Calendar
-                mode="single"
-                selected={currentWeek}
-                onSelect={handleDateSelect}
-                locale={fr}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="default"
-            onClick={() => setCurrentWeek(new Date())}
-          >
-            Aujourd&apos;hui
-          </Button>
-        </div>
+        <Button
+          onClick={() => {
+            setCreateForm({
+              date: format(new Date(), "yyyy-MM-dd"),
+              heure_debut: "08:00",
+              heure_fin: "10:00",
+              matiere_id: "",
+              salle: "",
+              notes: "",
+            });
+            setShowCreateDialog(true);
+          }}
+          className="bg-[#4243C4] hover:bg-[#3234A0] text-white"
+        >
+          <Plus className="size-4" />
+          Nouveau besoin
+        </Button>
       </div>
 
-      {/* Légende + Stats */}
+      {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-sm">
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded-sm bg-emerald-500" />
           <span className="text-muted-foreground">Confirmé</span>
-          <Badge variant="secondary" className="ml-0.5">{creneaux.length}</Badge>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded-sm bg-[#4243C4]" />
+          <span className="text-muted-foreground">Match possible</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded-sm bg-amber-500" />
-          <span className="text-muted-foreground">Besoin ouvert</span>
-          <Badge variant="secondary" className="ml-0.5">{weekBesoins.length}</Badge>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-primary" />
-          <span className="text-muted-foreground">Match possible</span>
-          <Badge variant="secondary" className="ml-0.5">{weekBesoinsWithMatch.length}</Badge>
+          <span className="text-muted-foreground">Sans match</span>
         </div>
       </div>
 
-      <div className="flex gap-6">
-        {/* Calendar grid */}
-        <Card className="flex-1 overflow-hidden">
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-7 gap-4">
-                  {Array.from({ length: 7 }).map((_, i) => (
-                    <Skeleton key={i} className="h-6 w-full" />
-                  ))}
-                </div>
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="grid grid-cols-7 gap-4">
-                    {Array.from({ length: 7 }).map((_, j) => (
-                      <Skeleton key={j} className="h-12 w-full" />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <div className="grid grid-cols-[60px_repeat(6,1fr)] min-w-[800px]">
-                  {/* Day headers */}
-                  <div className="border-b border-border bg-muted/30 p-2" />
-                  {days.map((day) => (
-                    <div
-                      key={day.toISOString()}
-                      className={`border-b border-l border-border p-3 text-center text-sm font-semibold transition-colors ${
-                        isSameDay(day, new Date())
-                          ? "bg-primary/5 text-primary"
-                          : "bg-muted/30 text-foreground"
-                      }`}
-                    >
-                      <span className="capitalize">
-                        {format(day, "EEE", { locale: fr })}
-                      </span>
-                      <span
-                        className={`ml-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                          isSameDay(day, new Date())
-                            ? "bg-primary text-primary-foreground"
-                            : ""
-                        }`}
-                      >
-                        {format(day, "d")}
-                      </span>
-                    </div>
-                  ))}
-
-                  {/* Hour rows */}
-                  {hours.map((hour) => (
-                    <div key={hour} className="contents">
-                      <div className="flex items-start justify-end border-b border-border/50 bg-muted/20 px-2 pt-1 text-xs font-medium text-muted-foreground">
-                        {hour}h
-                      </div>
-                      {days.map((day) => {
-                        const items = getItemsForDayHour(day, hour);
-
-                        return (
-                          <div
-                            key={day.toISOString() + hour}
-                            className={`relative min-h-[60px] border-b border-l border-border/50 transition-colors ${
-                              isSameDay(day, new Date()) ? "bg-primary/[0.02]" : ""
-                            }`}
-                          >
-                            {/* Confirmed créneaux */}
-                            {items.creneaux.map((c) => (
-                              <div
-                                key={c.id}
-                                className="absolute inset-x-0.5 top-0.5 rounded-md border border-emerald-300 bg-emerald-50 p-1.5 text-[11px] shadow-sm dark:border-emerald-700 dark:bg-emerald-900/30"
-                              >
-                                <div className="flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300">
-                                  <CheckCircle2 className="size-3 shrink-0" />
-                                  {c.matieres?.name || "Cours"}
-                                </div>
-                                <div className="mt-0.5 text-emerald-600/70 dark:text-emerald-400/70">
-                                  {c.heure_debut}-{c.heure_fin}
-                                  {c.intervenants && (
-                                    <> · {c.intervenants.first_name} {c.intervenants.last_name[0]}.</>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-
-                            {/* Open besoins */}
-                            {items.besoins.map((b) => {
-                              const match = getMatchForBesoin(b.id);
-                              const hasMatch = (match?.intervenants.length ?? 0) > 0;
-                              const isSelected = selectedBesoinId === b.id;
-
-                              return (
-                                <div
-                                  key={b.id}
-                                  onClick={() => setSelectedBesoinId(isSelected ? null : b.id)}
-                                  className={`absolute inset-x-0.5 cursor-pointer rounded-md border p-1.5 text-[11px] shadow-sm transition-all ${
-                                    isSelected
-                                      ? "ring-2 ring-primary border-primary bg-primary/10 z-10"
-                                      : hasMatch
-                                        ? "border-primary/40 bg-primary/5 hover:bg-primary/10 hover:border-primary/60"
-                                        : "border-amber-300 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/30"
-                                  }`}
-                                  style={{
-                                    top: `${items.creneaux.length > 0 ? 50 : 2}px`,
-                                  }}
-                                >
-                                  <div className={`flex items-center gap-1 font-semibold ${
-                                    hasMatch
-                                      ? "text-primary"
-                                      : "text-amber-700 dark:text-amber-300"
-                                  }`}>
-                                    {hasMatch ? (
-                                      <User className="size-3 shrink-0" />
-                                    ) : (
-                                      <AlertCircle className="size-3 shrink-0" />
-                                    )}
-                                    {b.matieres?.name || "Besoin"}
-                                  </div>
-                                  <div className={`mt-0.5 ${
-                                    hasMatch
-                                      ? "text-primary/60"
-                                      : "text-amber-600/70 dark:text-amber-400/70"
-                                  }`}>
-                                    {b.heure_debut}-{b.heure_fin}
-                                    {hasMatch && (
-                                      <span className="ml-1 font-medium">
-                                        · {match!.intervenants.length} dispo
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex gap-4">
+        {/* Calendar */}
+        <div className="flex-1 min-w-0">
+          <div
+            className="rounded-xl border border-border bg-card overflow-hidden"
+            style={{ height: "calc(100vh - 220px)" }}
+          >
+            <ScheduleXCalendar calendarApp={calendar} />
+          </div>
+        </div>
 
         {/* Match panel (right side) */}
         {selectedBesoin && (
           <Card className="w-80 shrink-0 self-start sticky top-6">
             <CardContent className="p-4 space-y-4">
-              {/* Header */}
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="font-semibold text-foreground">
@@ -462,7 +448,6 @@ export default function CreneauxPage() {
                 </Button>
               </div>
 
-              {/* Details */}
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <CalendarDays className="size-3.5" />
@@ -480,25 +465,19 @@ export default function CreneauxPage() {
                     Salle {selectedBesoin.salle}
                   </div>
                 )}
-                {selectedBesoin.notes && (
-                  <p className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
-                    {selectedBesoin.notes}
-                  </p>
-                )}
               </div>
 
               <div className="h-px bg-border" />
 
-              {/* Intervenants disponibles */}
               <div>
                 <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Intervenants disponibles
                 </h4>
 
                 {!selectedMatch || selectedMatch.intervenants.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/50 py-6 text-center dark:border-amber-700 dark:bg-amber-900/10">
+                  <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/50 py-6 text-center">
                     <AlertCircle className="mx-auto mb-2 size-6 text-amber-500" />
-                    <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                    <p className="text-sm font-medium text-amber-700">
                       Aucun intervenant disponible
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
@@ -551,28 +530,119 @@ export default function CreneauxPage() {
         )}
       </div>
 
-      {/* Empty state */}
-      {creneaux.length === 0 && besoins.length === 0 && !loading && (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-12">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-              <CalendarDays className="size-7 text-muted-foreground" />
+      {/* Create besoin dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nouveau besoin</DialogTitle>
+            <DialogDescription>
+              Définissez le créneau à pourvoir par un vacataire.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateBesoin} className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="create-date">
+                  Date <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="create-date"
+                  type="date"
+                  value={createForm.date}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, date: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-debut">
+                  Début <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="create-debut"
+                  type="time"
+                  value={createForm.heure_debut}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, heure_debut: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-fin">
+                  Fin <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="create-fin"
+                  type="time"
+                  value={createForm.heure_fin}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, heure_fin: e.target.value })
+                  }
+                  required
+                />
+              </div>
             </div>
-            <div className="text-center">
-              <p className="font-medium text-foreground">
-                Aucun créneau ni besoin cette semaine
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Ajoutez des besoins dans l&apos;onglet{" "}
-                <a href="/admin/besoins" className="text-primary underline">
-                  Besoins
-                </a>{" "}
-                et invitez les intervenants à donner leurs disponibilités.
-              </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Matière</Label>
+                <Select
+                  value={createForm.matiere_id}
+                  onValueChange={(val) =>
+                    setCreateForm({ ...createForm, matiere_id: val ?? "" })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Sélectionner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Aucune</SelectItem>
+                    {matieres.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.code ? `${m.code} - ` : ""}
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-salle">Salle</Label>
+                <Input
+                  id="create-salle"
+                  placeholder="Ex : B204"
+                  value={createForm.salle}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, salle: e.target.value })
+                  }
+                />
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div className="space-y-2">
+              <Label htmlFor="create-notes">Notes</Label>
+              <Input
+                id="create-notes"
+                placeholder="Informations complémentaires"
+                value={createForm.notes}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, notes: e.target.value })
+                }
+              />
+            </div>
+            <DialogFooter>
+              <DialogClose>
+                <Button type="button" variant="outline">
+                  Annuler
+                </Button>
+              </DialogClose>
+              <Button type="submit" className="bg-[#4243C4] hover:bg-[#3234A0] text-white">
+                Créer le besoin
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
