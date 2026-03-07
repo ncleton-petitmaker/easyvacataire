@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { format } from "date-fns";
+import { Temporal } from "temporal-polyfill";
 import { useCalendarApp, ScheduleXCalendar } from "@schedule-x/react";
 import {
   createViewDay,
@@ -50,7 +50,7 @@ export default function MesCreneauxCalendar({
     locale: "fr-FR",
     firstDayOfWeek: 1,
     defaultView: "week",
-    selectedDate: new Date().toISOString().slice(0, 10),
+    selectedDate: Temporal.PlainDate.from(new Date().toISOString().slice(0, 10)),
     views: [createViewDay(), createViewWeek(), createViewMonthGrid()],
     plugins: [eventsService],
     calendars: {

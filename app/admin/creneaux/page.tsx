@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { Temporal } from "temporal-polyfill";
 import { useEtablissementId } from "@/lib/hooks/use-etablissement";
 import { toast } from "sonner";
 import { useCalendarApp, ScheduleXCalendar } from "@schedule-x/react";
@@ -210,7 +211,7 @@ export default function CreneauxPage() {
     locale: "fr-FR",
     firstDayOfWeek: 1,
     defaultView: "week",
-    selectedDate: new Date().toISOString().slice(0, 10),
+    selectedDate: Temporal.PlainDate.from(new Date().toISOString().slice(0, 10)),
     views: [createViewDay(), createViewWeek(), createViewMonthGrid()],
     plugins: [
       eventsService,
