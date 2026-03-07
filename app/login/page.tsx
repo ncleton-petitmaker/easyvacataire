@@ -26,6 +26,32 @@ export default function LoginPage() {
         setError(data.error || "Erreur");
         return;
       }
+      if (data.test) {
+        // Test mode: skip code step, verify directly
+        const verifyRes = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone, code: "000000" }),
+        });
+        const verifyData = await verifyRes.json();
+        if (!verifyRes.ok) {
+          setError(verifyData.error || "Erreur");
+          return;
+        }
+        const supabase = createSupabaseBrowser();
+        await supabase.auth.setSession({
+          access_token: verifyData.access_token,
+          refresh_token: verifyData.refresh_token,
+        });
+        if (verifyData.role === "super_admin") {
+          window.location.href = "/super-admin";
+        } else if (verifyData.role === "admin") {
+          window.location.href = "/admin/creneaux";
+        } else {
+          window.location.href = "/mes/creneaux";
+        }
+        return;
+      }
       setStep("code");
     } catch {
       setError("Erreur de connexion");

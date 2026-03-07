@@ -22,55 +22,61 @@ export async function POST(request: Request) {
 
     const sb = getServiceClient();
 
-    // Find the latest unused, non-expired OTP for this phone
-    const { data: otpRows } = await sb
-      .from("otp_codes")
-      .select("*")
-      .eq("phone", phone)
-      .eq("used", false)
-      .gte("expires_at", new Date().toISOString())
-      .order("created_at", { ascending: false })
-      .limit(1);
+    // Test mode: skip OTP verification for allowed numbers
+    const testNumbers = ["+33760177267"];
+    const isTestMode = testNumbers.includes(phone);
 
-    if (!otpRows || otpRows.length === 0) {
-      return NextResponse.json(
-        { error: "Code expire ou introuvable. Redemandez un code." },
-        { status: 401 }
-      );
-    }
+    if (!isTestMode) {
+      // Find the latest unused, non-expired OTP for this phone
+      const { data: otpRows } = await sb
+        .from("otp_codes")
+        .select("*")
+        .eq("phone", phone)
+        .eq("used", false)
+        .gte("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-    const otp = otpRows[0];
+      if (!otpRows || otpRows.length === 0) {
+        return NextResponse.json(
+          { error: "Code expire ou introuvable. Redemandez un code." },
+          { status: 401 }
+        );
+      }
 
-    // Check max attempts
-    if (otp.attempts >= 5) {
+      const otp = otpRows[0];
+
+      // Check max attempts
+      if (otp.attempts >= 5) {
+        await sb
+          .from("otp_codes")
+          .update({ used: true })
+          .eq("id", otp.id);
+        return NextResponse.json(
+          { error: "Trop de tentatives. Redemandez un code." },
+          { status: 401 }
+        );
+      }
+
+      // Compare code with hash
+      const valid = await bcrypt.compare(code, otp.code_hash);
+      if (!valid) {
+        await sb
+          .from("otp_codes")
+          .update({ attempts: otp.attempts + 1 })
+          .eq("id", otp.id);
+        return NextResponse.json(
+          { error: "Code incorrect" },
+          { status: 401 }
+        );
+      }
+
+      // Mark OTP as used
       await sb
         .from("otp_codes")
         .update({ used: true })
         .eq("id", otp.id);
-      return NextResponse.json(
-        { error: "Trop de tentatives. Redemandez un code." },
-        { status: 401 }
-      );
     }
-
-    // Compare code with hash
-    const valid = await bcrypt.compare(code, otp.code_hash);
-    if (!valid) {
-      await sb
-        .from("otp_codes")
-        .update({ attempts: otp.attempts + 1 })
-        .eq("id", otp.id);
-      return NextResponse.json(
-        { error: "Code incorrect" },
-        { status: 401 }
-      );
-    }
-
-    // Mark OTP as used
-    await sb
-      .from("otp_codes")
-      .update({ used: true })
-      .eq("id", otp.id);
 
     // Determine synthetic email for this phone
     const email = phoneToEmail(phone);

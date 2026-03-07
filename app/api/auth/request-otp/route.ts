@@ -71,6 +71,12 @@ export async function POST(req: NextRequest) {
       expires_at: expiresAt,
     });
 
+    // Test mode: skip WhatsApp for allowed numbers
+    const testNumbers = ["+33760177267"];
+    if (testNumbers.includes(phone)) {
+      return NextResponse.json({ success: true, test: true });
+    }
+
     // Send via WhatsApp
     await sendOtpViaWhatsApp(phone, code);
 
