@@ -100,15 +100,17 @@ export default function CreneauxPage() {
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd }).slice(0, 6);
 
+  // Stable string keys to avoid infinite re-render loop
+  const fromStr = format(weekStart, "yyyy-MM-dd");
+  const toStr = format(weekEnd, "yyyy-MM-dd");
+
   const load = useCallback(async () => {
     if (!etablissementId) return;
     setLoading(true);
-    const from = format(weekStart, "yyyy-MM-dd");
-    const to = format(weekEnd, "yyyy-MM-dd");
 
     try {
       const [creneauxRes, besoinsRes, matchesRes] = await Promise.all([
-        fetch(`/api/creneaux?etablissement_id=${etablissementId}&from=${from}&to=${to}`),
+        fetch(`/api/creneaux?etablissement_id=${etablissementId}&from=${fromStr}&to=${toStr}`),
         fetch(`/api/besoins?etablissement_id=${etablissementId}&status=ouvert`),
         fetch(`/api/matching?etablissement_id=${etablissementId}`),
       ]);
@@ -124,7 +126,7 @@ export default function CreneauxPage() {
       // silently fail
     }
     setLoading(false);
-  }, [etablissementId, weekStart, weekEnd]);
+  }, [etablissementId, fromStr, toStr]);
 
   useEffect(() => {
     load();
