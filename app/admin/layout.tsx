@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Calendar,
   Shuffle,
@@ -14,10 +14,13 @@ import {
   LogOut,
   Shield,
   Menu,
+  Loader2,
 } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useRole } from "@/lib/hooks/use-role";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "/admin/creneaux", label: "Planning", icon: Calendar },
@@ -29,7 +32,7 @@ const navItems = [
   { href: "/admin/conversations", label: "Conversations", icon: MessageSquare },
 ];
 
-function SidebarContent({ pathname, onNav }: { pathname: string; onNav?: () => void }) {
+function SidebarContent({ pathname, onNav, onLogout, isSuperAdmin }: { pathname: string; onNav?: () => void; onLogout: () => void; isSuperAdmin: boolean }) {
   return (
     <>
       {/* Logo */}
@@ -71,21 +74,23 @@ function SidebarContent({ pathname, onNav }: { pathname: string; onNav?: () => v
 
       {/* Footer */}
       <div className="space-y-1 px-3 pb-4">
-        <Link
-          href="/super-admin"
-          onClick={onNav}
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-amber-400 transition-colors hover:bg-amber-500/10"
-        >
-          <Shield className="size-4 shrink-0" />
-          <span>Super Admin</span>
-        </Link>
-        <a
-          href="/api/auth/logout"
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
+        {isSuperAdmin && (
+          <Link
+            href="/super-admin"
+            onClick={onNav}
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-amber-400 transition-colors hover:bg-amber-500/10"
+          >
+            <Shield className="size-4 shrink-0" />
+            <span>Super Admin</span>
+          </Link>
+        )}
+        <button
+          onClick={() => { onNav?.(); onLogout(); }}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
         >
           <LogOut className="size-4 shrink-0" />
           <span>Déconnexion</span>
-        </a>
+        </button>
       </div>
     </>
   );
@@ -97,7 +102,25 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [role, roleLoading] = useRole(["super_admin", "admin"]);
+
+  async function handleLogout() {
+    const supabase = createSupabaseBrowser();
+    await supabase.auth.signOut();
+    localStorage.removeItem("easyvacataire_role");
+    localStorage.removeItem("uniplanning_etablissement_id");
+    router.push("/login");
+  }
+
+  if (roleLoading || !role || !["super_admin", "admin"].includes(role)) {
+    return (
+      <div className="flex h-dvh items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-[#4243C4]" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-dvh">
@@ -108,7 +131,7 @@ export default function AdminLayout({
           background: "linear-gradient(180deg, #1A1F2E 0%, #141820 100%)",
         }}
       >
-        <SidebarContent pathname={pathname} />
+        <SidebarContent pathname={pathname} onLogout={handleLogout} isSuperAdmin={role === "super_admin"} />
       </aside>
 
       {/* Mobile header + sheet */}
@@ -136,7 +159,7 @@ export default function AdminLayout({
               }}
             >
               <SheetTitle className="sr-only">Menu</SheetTitle>
-              <SidebarContent pathname={pathname} onNav={() => setMobileOpen(false)} />
+              <SidebarContent pathname={pathname} onNav={() => setMobileOpen(false)} onLogout={handleLogout} isSuperAdmin={role === "super_admin"} />
             </SheetContent>
           </Sheet>
           <img src="/logo.svg" alt="EasyVacataire" className="h-5 brightness-0 invert" />

@@ -145,27 +145,34 @@ export async function POST(request: Request) {
     }
 
     // Determine role: super_admin > admin > intervenant
-    const { data: superAdmin } = await sb
+    const sb2 = getServiceClient();
+
+    const { data: superAdmin } = await sb2
       .from("super_admins")
       .select("id")
       .eq("phone", phone)
       .eq("is_active", true)
       .limit(1)
-      .single();
+      .maybeSingle();
 
     let role = "intervenant";
     if (superAdmin) {
       role = "super_admin";
     } else {
-      const { data: intervenant } = await sb
+      const { data: intervenant } = await sb2
         .from("intervenants")
         .select("role")
         .eq("phone", phone)
         .eq("is_active", true)
         .limit(1)
-        .single();
+        .maybeSingle();
       if (intervenant?.role === "admin") role = "admin";
     }
+
+    // Persist role in user_metadata so it survives page refresh
+    await sb2.auth.admin.updateUserById(authUser.id, {
+      user_metadata: { role, phone },
+    });
 
     return NextResponse.json({
       success: true,

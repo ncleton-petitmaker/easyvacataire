@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Building2, LogOut, Menu } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Building2, LogOut, Menu, Loader2 } from "lucide-react";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useRole } from "@/lib/hooks/use-role";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
 
 const navItems = [
   { href: "/super-admin", label: "Établissements", icon: Building2 },
 ];
 
-function SidebarContent({ pathname, onNav }: { pathname: string; onNav?: () => void }) {
+function SidebarContent({ pathname, onNav, onLogout }: { pathname: string; onNav?: () => void; onLogout: () => void }) {
   return (
     <>
       <div className="px-6 pt-6 pb-2">
@@ -51,13 +53,13 @@ function SidebarContent({ pathname, onNav }: { pathname: string; onNav?: () => v
       <div className="mx-4 my-3 h-px bg-white/10" />
 
       <div className="space-y-1 px-3 pb-4">
-        <a
-          href="/api/auth/logout"
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
+        <button
+          onClick={() => { onNav?.(); onLogout(); }}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
         >
           <LogOut className="size-4 shrink-0" />
           <span>Déconnexion</span>
-        </a>
+        </button>
       </div>
     </>
   );
@@ -69,7 +71,25 @@ export default function SuperAdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [role, roleLoading] = useRole("super_admin");
+
+  async function handleLogout() {
+    const supabase = createSupabaseBrowser();
+    await supabase.auth.signOut();
+    localStorage.removeItem("easyvacataire_role");
+    localStorage.removeItem("uniplanning_etablissement_id");
+    router.push("/login");
+  }
+
+  if (roleLoading || role !== "super_admin") {
+    return (
+      <div className="flex h-dvh items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-[#4243C4]" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-dvh">
@@ -79,7 +99,7 @@ export default function SuperAdminLayout({
           background: "linear-gradient(180deg, #1A1F2E 0%, #141820 100%)",
         }}
       >
-        <SidebarContent pathname={pathname} />
+        <SidebarContent pathname={pathname} onLogout={handleLogout} />
       </aside>
 
       <div className="flex flex-1 flex-col min-w-0">
@@ -106,7 +126,7 @@ export default function SuperAdminLayout({
               }}
             >
               <SheetTitle className="sr-only">Menu</SheetTitle>
-              <SidebarContent pathname={pathname} onNav={() => setMobileOpen(false)} />
+              <SidebarContent pathname={pathname} onNav={() => setMobileOpen(false)} onLogout={handleLogout} />
             </SheetContent>
           </Sheet>
           <img src="/logo.svg" alt="EasyVacataire" className="h-5 brightness-0 invert" />

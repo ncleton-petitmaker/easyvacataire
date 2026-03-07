@@ -29,14 +29,47 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const pathname = request.nextUrl.pathname;
+
   // Public routes that don't require auth
-  const publicPaths = ["/", "/login", "/api/auth", "/api/whatsapp-webhook", "/api/cron", "/api/chat-agent", "/api/conversations", "/dispos"];
-  const isPublic = publicPaths.some((p) => request.nextUrl.pathname.startsWith(p));
+  const publicPaths = ["/", "/login", "/api/auth", "/api/whatsapp-webhook", "/api/whatsapp-meta-webhook", "/api/cron", "/api/chat-agent", "/api/conversations", "/dispos", "/conditions-utilisation", "/politique-de-confidentialite", "/sitemap.xml", "/manifest.json"];
+  const isPublic = publicPaths.some((p) => pathname.startsWith(p));
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/login";
     return NextResponse.redirect(url);
+  }
+
+  // Role-based route protection (from user_metadata)
+  if (user) {
+    const role = user.user_metadata?.role as string | undefined;
+
+    if (pathname.startsWith("/super-admin") && role !== "super_admin") {
+      const url = request.nextUrl.clone();
+      if (role === "admin") {
+        url.pathname = "/admin/creneaux";
+      } else {
+        url.pathname = "/mes/creneaux";
+      }
+      return NextResponse.redirect(url);
+    }
+
+    if (pathname.startsWith("/admin") && role !== "super_admin" && role !== "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/mes/creneaux";
+      return NextResponse.redirect(url);
+    }
+
+    if (pathname.startsWith("/mes") && (role === "super_admin" || role === "admin")) {
+      const url = request.nextUrl.clone();
+      if (role === "super_admin") {
+        url.pathname = "/super-admin";
+      } else {
+        url.pathname = "/admin/creneaux";
+      }
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;
