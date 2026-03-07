@@ -3,15 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Calendar, Clock, Info, LogOut, Menu } from "lucide-react";
+import { Calendar, LogOut, Menu } from "lucide-react";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/mes/creneaux", label: "Mon planning", icon: Calendar },
-  { href: "/mes/disponibilites", label: "Mes disponibilités", icon: Clock },
-  { href: "/mes/infos", label: "Infos pratiques", icon: Info },
 ];
 
 function SidebarContent({ pathname, onNav, onLogout }: { pathname: string; onNav?: () => void; onLogout: () => void }) {

@@ -99,7 +99,7 @@ export function CalendarGrid({
               {hours.map((h) => (
                 <div
                   key={h}
-                  className="absolute inset-x-0 border-t border-border/50 cursor-pointer hover:bg-muted/30"
+                  className="absolute inset-x-0 z-0 border-t border-border/50 cursor-pointer hover:bg-muted/30"
                   style={{
                     top: (h - dayStartHour) * HOUR_HEIGHT,
                     height: HOUR_HEIGHT,

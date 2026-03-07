@@ -31,7 +31,7 @@ export function CalendarEventBlock({
 
   return (
     <div
-      className={`absolute rounded-md border-l-[3px] px-1.5 py-0.5 text-[11px] leading-tight overflow-hidden ${colors.bg} ${colors.border} ${colors.text} ${onClick ? "cursor-pointer hover:brightness-95" : ""}`}
+      className={`absolute z-10 rounded-md border-l-[3px] px-1.5 py-0.5 text-[11px] leading-tight overflow-hidden ${colors.bg} ${colors.border} ${colors.text} ${onClick ? "cursor-pointer hover:brightness-95" : ""}`}
       style={{
         top: pos.top,
         height: pos.height,
