@@ -25,11 +25,16 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch (err) {
+    console.error("[middleware] getUser error:", err);
+  }
 
   const pathname = request.nextUrl.pathname;
+  console.log("[middleware]", pathname, "user:", user?.id ?? "null", "role:", user?.user_metadata?.role ?? "none");
 
   // Public routes that don't require auth
   const publicPaths = ["/", "/login", "/api/auth", "/api/whatsapp-webhook", "/api/whatsapp-meta-webhook", "/api/cron", "/api/chat-agent", "/api/conversations", "/dispos", "/conditions-utilisation", "/politique-de-confidentialite", "/sitemap.xml", "/manifest.json"];
