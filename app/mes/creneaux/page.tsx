@@ -1,19 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { format, isBefore, startOfDay } from "date-fns";
-import { fr } from "date-fns/locale";
-import { CalendarDays, MapPin } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
+import { useCalendarApp, ScheduleXCalendar } from "@schedule-x/react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardAction,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+  createViewDay,
+  createViewWeek,
+  createViewMonthGrid,
+} from "@schedule-x/calendar";
+import { createEventsServicePlugin } from "@schedule-x/events-service";
+import "@schedule-x/theme-default/dist/index.css";
+import { CalendarDays, Loader2 } from "lucide-react";
 
 type Creneau = {
   id: string;
@@ -27,6 +25,7 @@ type Creneau = {
 export default function MesCreneauxPage() {
   const [creneaux, setCreneaux] = useState<Creneau[]>([]);
   const [loading, setLoading] = useState(true);
+  const [eventsService] = useState(() => createEventsServicePlugin());
 
   useEffect(() => {
     async function load() {
@@ -41,7 +40,6 @@ export default function MesCreneauxPage() {
           return;
         }
 
-        // R\u00e9cup\u00e9rer l'intervenant li\u00e9 \u00e0 cet utilisateur
         const { data: intervenant } = await supabase
           .from("intervenants")
           .select("id")
@@ -67,99 +65,84 @@ export default function MesCreneauxPage() {
     load();
   }, []);
 
-  const upcoming = creneaux.filter(
-    (c) => !isBefore(new Date(c.date), startOfDay(new Date()))
-  );
+  const calendarEvents = useMemo(() => {
+    return creneaux.map((c) => ({
+      id: c.id,
+      title: `${c.matieres?.name || "Cours"}${c.salle ? ` - ${c.salle}` : ""}`,
+      start: `${c.date} ${c.heure_debut}`,
+      end: `${c.date} ${c.heure_fin}`,
+      calendarId: "confirmed",
+    }));
+  }, [creneaux]);
+
+  useEffect(() => {
+    if (!eventsService || loading) return;
+    try {
+      eventsService.set(calendarEvents);
+    } catch {
+      // eventsService might not be ready yet
+    }
+  }, [calendarEvents, eventsService, loading]);
+
+  const calendar = useCalendarApp({
+    locale: "fr-FR",
+    firstDayOfWeek: 1,
+    defaultView: "week",
+    selectedDate: format(new Date(), "yyyy-MM-dd"),
+    views: [createViewDay(), createViewWeek(), createViewMonthGrid()],
+    plugins: [eventsService],
+    calendars: {
+      confirmed: {
+        colorName: "confirmed",
+        lightColors: {
+          main: "#4243C4",
+          container: "#E0E0F7",
+          onContainer: "#1E1F6E",
+        },
+        darkColors: {
+          main: "#6366E8",
+          container: "#2A2B6E",
+          onContainer: "#E0E0F7",
+        },
+      },
+    },
+    dayBoundaries: { start: "07:00", end: "21:00" },
+    weekOptions: {
+      gridHeight: 700,
+      nDays: 6,
+      eventWidth: 95,
+    },
+    events: calendarEvents,
+  });
 
   if (loading) {
     return (
-      <div>
-        <h1 className="mb-6 text-2xl font-bold">Mon planning</h1>
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-5 w-48" />
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="flex flex-col items-center justify-center py-24">
+        <Loader2 className="size-8 animate-spin text-[#4243C4]" />
+        <p className="mt-3 text-sm text-muted-foreground">
+          Chargement du planning...
+        </p>
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold">Mon planning</h1>
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Mon planning</h1>
+        <p className="text-sm text-muted-foreground">
+          {creneaux.length > 0
+            ? `${creneaux.length} créneau${creneaux.length > 1 ? "x" : ""} à venir`
+            : "Vos créneaux confirmés apparaîtront sur ce calendrier."}
+        </p>
+      </div>
 
-      {upcoming.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <CalendarDays className="mx-auto mb-3 size-10 text-muted-foreground" />
-            <p className="text-muted-foreground">
-              Aucun cours programm\u00e9 prochainement.
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground/70">
-              Vos prochains cr\u00e9neaux appara\u00eetront ici d\u00e8s qu&apos;ils seront confirm\u00e9s.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {upcoming.map((c) => {
-            const dateObj = new Date(c.date + "T00:00:00");
-            const isToday =
-              format(dateObj, "yyyy-MM-dd") ===
-              format(new Date(), "yyyy-MM-dd");
-
-            return (
-              <Card
-                key={c.id}
-                className={
-                  isToday
-                    ? "border-primary/30 bg-primary/5"
-                    : undefined
-                }
-              >
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    {c.matieres?.name || "Cours"}
-                    {c.matieres?.code && (
-                      <Badge variant="secondary">{c.matieres.code}</Badge>
-                    )}
-                    {isToday && <Badge>Aujourd&apos;hui</Badge>}
-                  </CardTitle>
-                  <CardAction>
-                    <span className="text-lg font-semibold">
-                      {c.heure_debut} - {c.heure_fin}
-                    </span>
-                  </CardAction>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <CalendarDays className="size-3.5" />
-                      {format(dateObj, "EEEE d MMMM yyyy", { locale: fr })}
-                    </span>
-                    {c.salle && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="size-3.5" />
-                        Salle {c.salle}
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      <div
+        className="rounded-xl border border-border bg-card overflow-hidden"
+        style={{ height: "calc(100vh - 200px)", minHeight: "400px" }}
+      >
+        <ScheduleXCalendar calendarApp={calendar} />
+      </div>
     </div>
   );
 }
