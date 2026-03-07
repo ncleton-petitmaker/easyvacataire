@@ -8,6 +8,7 @@ import type { CalendarEvent } from "@/components/calendar/types";
 import {
   CheckCircle2,
   AlertCircle,
+  Shuffle,
   Clock,
   MapPin,
   CalendarDays,
@@ -149,6 +150,21 @@ export default function CreneauxPage() {
     load();
   }, [load]);
 
+  // Status counters for cards
+  const statusCounts = useMemo(() => {
+    let matchPossible = 0;
+    let sansMatch = 0;
+    for (const b of besoins) {
+      const match = matches.find((m) => m.besoin.id === b.id);
+      if ((match?.intervenants.length ?? 0) > 0) {
+        matchPossible++;
+      } else {
+        sansMatch++;
+      }
+    }
+    return { matchPossible, sansMatch };
+  }, [besoins, matches]);
+
   // Build calendar events from creneaux + besoins
   const calendarEvents: CalendarEvent[] = useMemo(() => {
     const events: CalendarEvent[] = [];
@@ -289,19 +305,28 @@ export default function CreneauxPage() {
         </Button>
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-sm">
-        <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-emerald-500" />
-          <span className="text-muted-foreground">Confirmé</span>
+      {/* Status cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex items-center gap-3 rounded-lg border border-emerald-200 border-l-4 border-l-emerald-500 bg-emerald-50 p-3">
+          <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
+          <div>
+            <p className="text-2xl font-bold text-emerald-700">{creneaux.length}</p>
+            <p className="text-xs text-emerald-600/80">Confirmé</p>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-[#4243C4]" />
-          <span className="text-muted-foreground">Match possible</span>
+        <div className="flex items-center gap-3 rounded-lg border border-indigo-200 border-l-4 border-l-indigo-500 bg-indigo-50 p-3">
+          <Shuffle className="size-5 text-indigo-600 shrink-0" />
+          <div>
+            <p className="text-2xl font-bold text-indigo-700">{statusCounts.matchPossible}</p>
+            <p className="text-xs text-indigo-600/80">Match possible</p>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-amber-500" />
-          <span className="text-muted-foreground">Sans match</span>
+        <div className="flex items-center gap-3 rounded-lg border border-amber-200 border-l-4 border-l-amber-500 bg-amber-50 p-3">
+          <AlertCircle className="size-5 text-amber-600 shrink-0" />
+          <div>
+            <p className="text-2xl font-bold text-amber-700">{statusCounts.sansMatch}</p>
+            <p className="text-xs text-amber-600/80">Sans match</p>
+          </div>
         </div>
       </div>
 

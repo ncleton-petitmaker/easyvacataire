@@ -24,7 +24,7 @@ const navItems = [
   { href: "/admin/creneaux", label: "Planning", icon: Calendar },
   { href: "/admin/matching", label: "Matching", icon: Shuffle },
   { href: "/admin/besoins", label: "Besoins", icon: ClipboardList },
-  { href: "/admin/intervenants", label: "Intervenants", icon: Users },
+  { href: "/admin/intervenants", label: "Vacataires", icon: Users },
   { href: "/admin/matieres", label: "Matières", icon: BookOpen },
   { href: "/admin/knowledge", label: "Connaissances", icon: Brain },
   { href: "/admin/conversations", label: "Conversations", icon: MessageSquare },

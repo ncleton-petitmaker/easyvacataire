@@ -35,9 +35,6 @@ export function CalendarHeader({
         <Button variant="outline" size="icon" className="size-8" onClick={onNext}>
           <ChevronRight className="size-4" />
         </Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onToday}>
-          Aujourd&apos;hui
-        </Button>
       </div>
 
       {/* Label */}
