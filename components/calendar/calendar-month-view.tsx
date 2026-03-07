@@ -2,15 +2,22 @@
 
 import { format, isSameMonth, isToday, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
+import { CheckCircle2, Shuffle, AlertCircle } from "lucide-react";
 import { getMonthDays, getDayEvents } from "./utils";
 import type { CalendarEvent } from "./types";
 
-const COLOR_DOT: Record<string, string> = {
-  indigo: "bg-indigo-500",
-  emerald: "bg-emerald-500",
-  amber: "bg-amber-500",
-  rose: "bg-rose-500",
-  sky: "bg-sky-500",
+const COLOR_PILL: Record<string, { bg: string; text: string; icon: string }> = {
+  emerald: { bg: "bg-emerald-100", text: "text-emerald-800", icon: "text-emerald-600" },
+  indigo: { bg: "bg-indigo-100", text: "text-indigo-800", icon: "text-indigo-600" },
+  amber: { bg: "bg-amber-100", text: "text-amber-800", icon: "text-amber-600" },
+  rose: { bg: "bg-rose-100", text: "text-rose-800", icon: "text-rose-600" },
+  sky: { bg: "bg-sky-100", text: "text-sky-800", icon: "text-sky-600" },
+};
+
+const STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  emerald: CheckCircle2,
+  indigo: Shuffle,
+  amber: AlertCircle,
 };
 
 export function CalendarMonthView({
@@ -69,22 +76,23 @@ export function CalendarMonthView({
                   </span>
 
                   <div className="mt-0.5 space-y-0.5">
-                    {dayEvts.slice(0, 3).map((evt) => (
-                      <div
-                        key={evt.id}
-                        className={`truncate rounded px-1 py-px text-[10px] font-medium cursor-pointer ${
-                          COLOR_DOT[evt.color]
-                            ? `${COLOR_DOT[evt.color]}/15 text-foreground`
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEventClick?.(evt);
-                        }}
-                      >
-                        {evt.title}
-                      </div>
-                    ))}
+                    {dayEvts.slice(0, 3).map((evt) => {
+                      const pill = COLOR_PILL[evt.color] ?? { bg: "bg-gray-100", text: "text-gray-700", icon: "text-gray-500" };
+                      const Icon = STATUS_ICON[evt.color];
+                      return (
+                        <div
+                          key={evt.id}
+                          className={`flex items-center gap-1 truncate rounded-md px-1 py-px text-[10px] font-semibold cursor-pointer ${pill.bg} ${pill.text}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick?.(evt);
+                          }}
+                        >
+                          {Icon && <Icon className={`size-2.5 shrink-0 ${pill.icon}`} />}
+                          <span className="truncate">{evt.title}</span>
+                        </div>
+                      );
+                    })}
                     {dayEvts.length > 3 && (
                       <span className="text-[10px] text-muted-foreground pl-1">
                         +{dayEvts.length - 3}
