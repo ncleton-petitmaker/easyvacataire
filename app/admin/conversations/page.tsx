@@ -2,6 +2,21 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useEtablissementId } from "@/lib/hooks/use-etablissement";
+import {
+  MessageSquare,
+  Search,
+  Bot,
+  User,
+  Phone,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface Conversation {
   id: string;
@@ -28,6 +43,8 @@ export default function ConversationsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [search, setSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,16 +60,18 @@ export default function ConversationsPage() {
 
   useEffect(() => {
     if (!selectedId) return;
+    setLoadingMessages(true);
     fetch(`/api/conversations/${selectedId}/messages`)
       .then((r) => r.json())
       .then((data) => {
         setMessages(data.messages || []);
+        setLoadingMessages(false);
         setTimeout(
           () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }),
           100
         );
       });
-    // Poll every 5s
+    // Poll toutes les 5s
     const interval = setInterval(() => {
       fetch(`/api/conversations/${selectedId}/messages`)
         .then((r) => r.json())
@@ -78,106 +97,288 @@ export default function ConversationsPage() {
     });
   };
 
+  const getDisplayName = (conv: Conversation) => {
+    if (conv.intervenants) {
+      return `${conv.intervenants.first_name} ${conv.intervenants.last_name}`;
+    }
+    return conv.phone;
+  };
+
+  const getInitials = (conv: Conversation) => {
+    if (conv.intervenants) {
+      return `${conv.intervenants.first_name[0]}${conv.intervenants.last_name[0]}`.toUpperCase();
+    }
+    return conv.phone.slice(-2);
+  };
+
+  const selectedConv = conversations.find((c) => c.id === selectedId);
+
+  const filteredConversations = conversations.filter((conv) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const name = getDisplayName(conv).toLowerCase();
+    const phone = conv.phone.toLowerCase();
+    return name.includes(q) || phone.includes(q);
+  });
+
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-        Conversations WhatsApp
-      </h1>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">
+          Conversations WhatsApp
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Consultez les échanges WhatsApp avec vos intervenants
+        </p>
+      </div>
 
       <div className="flex gap-4" style={{ height: "calc(100vh - 200px)" }}>
-        {/* Conversation list */}
-        <div className="w-80 shrink-0 overflow-y-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
-          {loading ? (
-            <div className="p-4 text-center text-zinc-500">Chargement...</div>
-          ) : conversations.length === 0 ? (
-            <div className="p-4 text-center text-zinc-500">
-              Aucune conversation
+        {/* Panneau gauche : liste des conversations */}
+        <Card className="flex w-80 shrink-0 flex-col overflow-hidden">
+          <CardHeader className="border-b pb-3">
+            <CardTitle className="text-sm">Conversations</CardTitle>
+            <div className="relative mt-2">
+              <Search className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
             </div>
-          ) : (
-            conversations.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => setSelectedId(conv.id)}
-                className={`w-full border-b border-zinc-100 p-4 text-left transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-700 ${
-                  selectedId === conv.id
-                    ? "bg-indigo-50 dark:bg-indigo-900/20"
-                    : ""
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                    {conv.intervenants
-                      ? `${conv.intervenants.first_name} ${conv.intervenants.last_name}`
-                      : conv.phone}
-                  </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      conv.status === "active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-zinc-100 text-zinc-500"
-                    }`}
-                  >
-                    {conv.status}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs text-zinc-400">
-                  {conv.phone} - {formatDate(conv.updated_at)}
-                </div>
-              </button>
-            ))
-          )}
-        </div>
+          </CardHeader>
 
-        {/* Messages panel */}
-        <div className="flex flex-1 flex-col rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
+          <ScrollArea className="flex-1">
+            {loading ? (
+              /* Skeleton loading */
+              <div className="space-y-1 p-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-lg p-3">
+                    <Skeleton className="size-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3.5 w-28" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-5 w-12 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            ) : filteredConversations.length === 0 ? (
+              /* État vide */
+              <div className="flex flex-col items-center justify-center px-4 py-12">
+                <MessageSquare className="mb-2 size-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {search.trim()
+                    ? "Aucun résultat"
+                    : "Aucune conversation"}
+                </p>
+              </div>
+            ) : (
+              /* Liste des conversations */
+              <div className="space-y-0.5 p-1.5">
+                {filteredConversations.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => setSelectedId(conv.id)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-muted/50",
+                      selectedId === conv.id && "bg-muted"
+                    )}
+                  >
+                    <Avatar>
+                      <AvatarFallback>{getInitials(conv)}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-medium">
+                          {getDisplayName(conv)}
+                        </span>
+                        <Badge
+                          variant={
+                            conv.status === "active"
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {conv.status === "active" ? "Actif" : conv.status}
+                        </Badge>
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                        <Phone className="size-3" />
+                        <span className="truncate">{conv.phone}</span>
+                        <span className="mx-1">&middot;</span>
+                        <span className="shrink-0">
+                          {formatDate(conv.updated_at)}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </Card>
+
+        {/* Panneau droit : fil de messages */}
+        <Card className="flex flex-1 flex-col overflow-hidden">
           {!selectedId ? (
-            <div className="flex flex-1 items-center justify-center text-zinc-400">
-              Sélectionnez une conversation
+            /* Aucune conversation sélectionnée */
+            <div className="flex flex-1 flex-col items-center justify-center">
+              <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-muted">
+                <MessageSquare className="size-8 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium">
+                Sélectionnez une conversation
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Choisissez une conversation dans la liste pour afficher les
+                messages.
+              </p>
             </div>
           ) : (
             <>
-              <div className="border-b border-zinc-200 p-4 dark:border-zinc-700">
-                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
-                  {conversations.find((c) => c.id === selectedId)
-                    ?.intervenants
-                    ? `${conversations.find((c) => c.id === selectedId)!.intervenants!.first_name} ${conversations.find((c) => c.id === selectedId)!.intervenants!.last_name}`
-                    : conversations.find((c) => c.id === selectedId)?.phone}
-                </h2>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[75%] rounded-2xl px-4 py-2 ${
-                        msg.direction === "outbound"
-                          ? "bg-indigo-600 text-white"
-                          : "bg-zinc-100 text-zinc-900 dark:bg-zinc-700 dark:text-zinc-100"
-                      }`}
+              {/* En-tête de la conversation */}
+              <CardHeader className="border-b">
+                <div className="flex items-center gap-3">
+                  <Avatar>
+                    <AvatarFallback>
+                      {selectedConv ? getInitials(selectedConv) : "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <CardTitle className="text-sm">
+                      {selectedConv ? getDisplayName(selectedConv) : ""}
+                    </CardTitle>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Phone className="size-3" />
+                      {selectedConv?.phone}
+                    </p>
+                  </div>
+                  {selectedConv && (
+                    <Badge
+                      variant={
+                        selectedConv.status === "active"
+                          ? "default"
+                          : "secondary"
+                      }
+                      className="ml-auto"
                     >
-                      <p className="whitespace-pre-wrap text-sm">
-                        {msg.content}
-                      </p>
-                      <p
-                        className={`mt-1 text-right text-xs ${
-                          msg.direction === "outbound"
-                            ? "text-indigo-200"
-                            : "text-zinc-400"
-                        }`}
-                      >
-                        {formatTime(msg.created_at)}
+                      {selectedConv.status === "active"
+                        ? "Actif"
+                        : selectedConv.status}
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+
+              {/* Messages */}
+              <ScrollArea className="flex-1">
+                <div className="space-y-3 p-4">
+                  {loadingMessages ? (
+                    /* Skeleton loading pour les messages */
+                    <>
+                      {[1, 2, 3, 4].map((i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            "flex",
+                            i % 2 === 0 ? "justify-end" : "justify-start"
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              "flex items-end gap-2",
+                              i % 2 === 0 && "flex-row-reverse"
+                            )}
+                          >
+                            <Skeleton className="size-6 shrink-0 rounded-full" />
+                            <div className="space-y-1.5">
+                              <Skeleton
+                                className={cn(
+                                  "h-12 rounded-2xl",
+                                  i % 2 === 0 ? "w-48" : "w-56"
+                                )}
+                              />
+                              <Skeleton
+                                className={cn(
+                                  "h-3 w-10",
+                                  i % 2 === 0 ? "ml-auto" : ""
+                                )}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16">
+                      <MessageSquare className="mb-2 size-8 text-muted-foreground/30" />
+                      <p className="text-sm text-muted-foreground">
+                        Aucun message
                       </p>
                     </div>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
+                  ) : (
+                    messages.map((msg) => {
+                      const isOutbound = msg.direction === "outbound";
+                      return (
+                        <div
+                          key={msg.id}
+                          className={cn(
+                            "flex",
+                            isOutbound ? "justify-end" : "justify-start"
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              "flex max-w-[75%] items-end gap-2",
+                              isOutbound && "flex-row-reverse"
+                            )}
+                          >
+                            {/* Avatar expéditeur */}
+                            <Avatar size="sm">
+                              <AvatarFallback>
+                                {isOutbound ? (
+                                  <Bot className="size-3" />
+                                ) : (
+                                  <User className="size-3" />
+                                )}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            {/* Bulle du message */}
+                            <div
+                              className={cn(
+                                "rounded-2xl px-4 py-2.5",
+                                isOutbound
+                                  ? "rounded-br-md bg-primary text-primary-foreground"
+                                  : "rounded-bl-md bg-muted"
+                              )}
+                            >
+                              <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                                {msg.content}
+                              </p>
+                              <p
+                                className={cn(
+                                  "mt-1 text-right text-[10px]",
+                                  isOutbound
+                                    ? "text-primary-foreground/60"
+                                    : "text-muted-foreground"
+                                )}
+                              >
+                                {formatTime(msg.created_at)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
             </>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

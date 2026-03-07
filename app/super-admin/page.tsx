@@ -1,6 +1,46 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import {
+  Building2,
+  ChevronDown,
+  Plus,
+  ShieldCheck,
+  Phone,
+  UserPlus,
+  Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Etablissement = {
   id: string;
@@ -20,17 +60,17 @@ type Admin = {
 export default function SuperAdminPage() {
   const [etablissements, setEtablissements] = useState<Etablissement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createName, setCreateName] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
-  // Track expanded etablissements and their admins
+  // Track expanded établissements and their admins
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [admins, setAdmins] = useState<Record<string, Admin[]>>({});
   const [loadingAdmins, setLoadingAdmins] = useState<string | null>(null);
 
-  // Add admin form state
+  // Add admin dialog state
   const [addAdminForId, setAddAdminForId] = useState<string | null>(null);
   const [adminForm, setAdminForm] = useState({
     phone: "+33",
@@ -64,10 +104,8 @@ export default function SuperAdminPage() {
   function toggleExpand(id: string) {
     if (expandedId === id) {
       setExpandedId(null);
-      setAddAdminForId(null);
     } else {
       setExpandedId(id);
-      setAddAdminForId(null);
       if (!admins[id]) {
         loadAdmins(id);
       }
@@ -93,11 +131,11 @@ export default function SuperAdminPage() {
     });
     if (res.ok) {
       setCreateName("");
-      setShowCreateForm(false);
+      setShowCreateDialog(false);
       loadEtablissements();
     } else {
       const data = await res.json();
-      setCreateError(data.error || "Erreur lors de la creation");
+      setCreateError(data.error || "Erreur lors de la création");
     }
     setCreating(false);
   }
@@ -125,239 +163,318 @@ export default function SuperAdminPage() {
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          Etablissements
-        </h1>
-        <button
-          onClick={() => {
-            setShowCreateForm(!showCreateForm);
-            setCreateError("");
-          }}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        >
-          + Nouvel etablissement
-        </button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Établissements
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Gérez vos établissements et leurs administrateurs
+          </p>
+        </div>
+
+        {/* Dialog : créer un établissement */}
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogTrigger
+            render={
+              <Button size="lg">
+                <Plus className="size-4" />
+                Nouvel établissement
+              </Button>
+            }
+          />
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Créer un établissement</DialogTitle>
+              <DialogDescription>
+                Renseignez le nom du nouvel établissement. Le slug sera généré
+                automatiquement.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreate}>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="etab-name">Nom</Label>
+                  <Input
+                    id="etab-name"
+                    placeholder="Nom de l'établissement"
+                    value={createName}
+                    onChange={(e) => setCreateName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Slug (auto-généré)</Label>
+                  <div className="flex h-8 items-center rounded-lg border border-input bg-muted/50 px-2.5 text-sm text-muted-foreground">
+                    {generateSlug(createName) || "—"}
+                  </div>
+                </div>
+                {createError && (
+                  <p className="text-sm text-destructive">{createError}</p>
+                )}
+              </div>
+              <DialogFooter className="mt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowCreateDialog(false)}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={creating}>
+                  {creating && <Loader2 className="size-4 animate-spin" />}
+                  {creating ? "Création..." : "Créer"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {showCreateForm && (
-        <form
-          onSubmit={handleCreate}
-          className="mb-6 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
-        >
-          <h2 className="mb-4 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-            Creer un etablissement
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs text-zinc-500">Nom</label>
-              <input
-                placeholder="Nom de l'etablissement"
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                required
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-zinc-500">
-                Slug (auto-genere)
-              </label>
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800">
-                {generateSlug(createName) || "—"}
-              </div>
-            </div>
-          </div>
-          {createError && (
-            <p className="mt-3 text-sm text-red-600">{createError}</p>
-          )}
-          <div className="mt-4 flex gap-2">
-            <button
-              type="submit"
-              disabled={creating}
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-            >
-              {creating ? "Creation..." : "Creer"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowCreateForm(false)}
-              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
-            >
-              Annuler
-            </button>
-          </div>
-        </form>
-      )}
-
+      {/* Loading state */}
       {loading ? (
-        <div className="py-12 text-center text-zinc-400">Chargement...</div>
-      ) : etablissements.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-12 text-center text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900">
-          Aucun etablissement
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <Skeleton className="size-10 rounded-lg" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          ))}
         </div>
+      ) : etablissements.length === 0 ? (
+        /* Empty state */
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
+              <Building2 className="size-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium">Aucun établissement</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Créez votre premier établissement pour commencer.
+            </p>
+            <Button
+              className="mt-4"
+              onClick={() => setShowCreateDialog(true)}
+            >
+              <Plus className="size-4" />
+              Nouvel établissement
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
+        /* Établissement cards */
         <div className="space-y-3">
           {etablissements.map((etab) => (
-            <div
-              key={etab.id}
-              className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
-            >
-              {/* Etablissement header */}
-              <button
+            <Card key={etab.id}>
+              {/* Établissement header */}
+              <CardHeader
+                className="cursor-pointer"
                 onClick={() => toggleExpand(etab.id)}
-                className="flex w-full items-center justify-between px-6 py-4 text-left"
               >
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    {etab.name}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-zinc-400">
-                    /{etab.slug} &middot; {etab.intervenants_count}{" "}
-                    intervenant{etab.intervenants_count !== 1 ? "s" : ""}
-                  </p>
-                </div>
                 <div className="flex items-center gap-3">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      etab.is_active
-                        ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-                    }`}
-                  >
-                    {etab.is_active ? "Actif" : "Inactif"}
-                  </span>
-                  <svg
-                    className={`h-4 w-4 text-zinc-400 transition-transform ${
-                      expandedId === etab.id ? "rotate-180" : ""
-                    }`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </button>
-
-              {/* Expanded admin list */}
-              {expandedId === etab.id && (
-                <div className="border-t border-zinc-100 px-6 py-4 dark:border-zinc-800">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                      Administrateurs
-                    </h4>
-                    <button
-                      onClick={() =>
-                        setAddAdminForId(
-                          addAdminForId === etab.id ? null : etab.id
-                        )
-                      }
-                      className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-                    >
-                      + Ajouter un admin
-                    </button>
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Building2 className="size-5" />
                   </div>
-
-                  {/* Add admin form */}
-                  {addAdminForId === etab.id && (
-                    <form
-                      onSubmit={(e) => handleAddAdmin(e, etab.id)}
-                      className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800"
-                    >
-                      <div className="grid grid-cols-3 gap-3">
-                        <input
-                          placeholder="Prenom"
-                          value={adminForm.first_name}
-                          onChange={(e) =>
-                            setAdminForm({
-                              ...adminForm,
-                              first_name: e.target.value,
-                            })
-                          }
-                          required
-                          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700"
-                        />
-                        <input
-                          placeholder="Nom"
-                          value={adminForm.last_name}
-                          onChange={(e) =>
-                            setAdminForm({
-                              ...adminForm,
-                              last_name: e.target.value,
-                            })
-                          }
-                          required
-                          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700"
-                        />
-                        <input
-                          placeholder="Telephone (+33...)"
-                          value={adminForm.phone}
-                          onChange={(e) =>
-                            setAdminForm({
-                              ...adminForm,
-                              phone: e.target.value,
-                            })
-                          }
-                          required
-                          className="rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700"
-                        />
-                      </div>
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          type="submit"
-                          disabled={addingAdmin}
-                          className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-                        >
-                          {addingAdmin ? "Ajout..." : "Ajouter"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAddAdminForId(null)}
-                          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs dark:border-zinc-600"
-                        >
-                          Annuler
-                        </button>
-                      </div>
-                    </form>
-                  )}
-
-                  {/* Admin list */}
-                  {loadingAdmins === etab.id ? (
-                    <p className="py-4 text-center text-xs text-zinc-400">
-                      Chargement...
-                    </p>
-                  ) : (admins[etab.id] || []).length === 0 ? (
-                    <p className="py-4 text-center text-xs text-zinc-400">
-                      Aucun administrateur
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {(admins[etab.id] || []).map((admin) => (
-                        <div
-                          key={admin.id}
-                          className="flex items-center justify-between rounded-lg bg-zinc-50 px-4 py-2.5 dark:bg-zinc-800"
-                        >
-                          <div>
-                            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                              {admin.first_name} {admin.last_name}
-                            </span>
-                          </div>
-                          <span className="text-sm text-zinc-500">
-                            {admin.phone}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="min-w-0 flex-1">
+                    <CardTitle>{etab.name}</CardTitle>
+                    <CardDescription>
+                      /{etab.slug} &middot; {etab.intervenants_count}{" "}
+                      intervenant{etab.intervenants_count !== 1 ? "s" : ""}
+                    </CardDescription>
+                  </div>
                 </div>
+                <CardAction>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={etab.is_active ? "default" : "secondary"}
+                    >
+                      {etab.is_active ? "Actif" : "Inactif"}
+                    </Badge>
+                    <ChevronDown
+                      className={`size-4 text-muted-foreground transition-transform ${
+                        expandedId === etab.id ? "rotate-180" : ""
+                      }`}
+                    />
+                  </div>
+                </CardAction>
+              </CardHeader>
+
+              {/* Expanded admin section */}
+              {expandedId === etab.id && (
+                <>
+                  <Separator />
+                  <CardContent>
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="size-4 text-muted-foreground" />
+                        <h4 className="text-sm font-medium">
+                          Administrateurs
+                        </h4>
+                      </div>
+
+                      {/* Dialog : ajouter un admin */}
+                      <Dialog
+                        open={addAdminForId === etab.id}
+                        onOpenChange={(open) =>
+                          setAddAdminForId(open ? etab.id : null)
+                        }
+                      >
+                        <DialogTrigger
+                          render={
+                            <Button variant="outline" size="sm">
+                              <UserPlus className="size-3.5" />
+                              Ajouter un admin
+                            </Button>
+                          }
+                        />
+                        <DialogContent className="sm:max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>
+                              Ajouter un administrateur
+                            </DialogTitle>
+                            <DialogDescription>
+                              Ajoutez un administrateur à{" "}
+                              <strong>{etab.name}</strong>.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <form
+                            onSubmit={(e) => handleAddAdmin(e, etab.id)}
+                          >
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <Label htmlFor={`fname-${etab.id}`}>
+                                  Prénom
+                                </Label>
+                                <Input
+                                  id={`fname-${etab.id}`}
+                                  placeholder="Prénom"
+                                  value={adminForm.first_name}
+                                  onChange={(e) =>
+                                    setAdminForm({
+                                      ...adminForm,
+                                      first_name: e.target.value,
+                                    })
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`lname-${etab.id}`}>
+                                  Nom
+                                </Label>
+                                <Input
+                                  id={`lname-${etab.id}`}
+                                  placeholder="Nom de famille"
+                                  value={adminForm.last_name}
+                                  onChange={(e) =>
+                                    setAdminForm({
+                                      ...adminForm,
+                                      last_name: e.target.value,
+                                    })
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`phone-${etab.id}`}>
+                                  Téléphone
+                                </Label>
+                                <Input
+                                  id={`phone-${etab.id}`}
+                                  placeholder="+33 6 12 34 56 78"
+                                  value={adminForm.phone}
+                                  onChange={(e) =>
+                                    setAdminForm({
+                                      ...adminForm,
+                                      phone: e.target.value,
+                                    })
+                                  }
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <DialogFooter className="mt-4">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setAddAdminForId(null)}
+                              >
+                                Annuler
+                              </Button>
+                              <Button type="submit" disabled={addingAdmin}>
+                                {addingAdmin && (
+                                  <Loader2 className="size-4 animate-spin" />
+                                )}
+                                {addingAdmin ? "Ajout..." : "Ajouter"}
+                              </Button>
+                            </DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+
+                    {/* Admin table */}
+                    {loadingAdmins === etab.id ? (
+                      <div className="space-y-2">
+                        {[1, 2].map((i) => (
+                          <div key={i} className="flex items-center gap-3 py-2">
+                            <Skeleton className="size-8 rounded-full" />
+                            <div className="space-y-1.5">
+                              <Skeleton className="h-3.5 w-32" />
+                              <Skeleton className="h-3 w-24" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (admins[etab.id] || []).length === 0 ? (
+                      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8">
+                        <ShieldCheck className="mb-2 size-8 text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">
+                          Aucun administrateur
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground/70">
+                          Ajoutez un premier admin pour cet établissement.
+                        </p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nom</TableHead>
+                            <TableHead>Prénom</TableHead>
+                            <TableHead>Téléphone</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(admins[etab.id] || []).map((admin) => (
+                            <TableRow key={admin.id}>
+                              <TableCell className="font-medium">
+                                {admin.last_name}
+                              </TableCell>
+                              <TableCell>{admin.first_name}</TableCell>
+                              <TableCell>
+                                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                                  <Phone className="size-3" />
+                                  {admin.phone}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       )}

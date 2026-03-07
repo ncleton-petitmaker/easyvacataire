@@ -3,6 +3,17 @@
 import { useState, useEffect } from "react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
+import { CalendarDays, MapPin } from "lucide-react";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardAction,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Creneau = {
   id: string;
@@ -19,11 +30,38 @@ export default function MesCreneauxPage() {
 
   useEffect(() => {
     async function load() {
-      const today = format(new Date(), "yyyy-MM-dd");
-      // TODO: get intervenant_id from session
-      const res = await fetch(`/api/creneaux?from=${today}`);
-      const data = await res.json();
-      if (Array.isArray(data)) setCreneaux(data);
+      try {
+        const supabase = createSupabaseBrowser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        // R\u00e9cup\u00e9rer l'intervenant li\u00e9 \u00e0 cet utilisateur
+        const { data: intervenant } = await supabase
+          .from("intervenants")
+          .select("id")
+          .eq("user_id", user.id)
+          .single();
+
+        if (!intervenant) {
+          setLoading(false);
+          return;
+        }
+
+        const today = format(new Date(), "yyyy-MM-dd");
+        const res = await fetch(
+          `/api/creneaux?intervenant_id=${intervenant.id}&from=${today}`
+        );
+        const data = await res.json();
+        if (Array.isArray(data)) setCreneaux(data);
+      } catch {
+        // Silently fail
+      }
       setLoading(false);
     }
     load();
@@ -34,17 +72,44 @@ export default function MesCreneauxPage() {
   );
 
   if (loading) {
-    return <div className="text-zinc-500">Chargement...</div>;
+    return (
+      <div>
+        <h1 className="mb-6 text-2xl font-bold">Mon planning</h1>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-5 w-48" />
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-        Mon planning
-      </h1>
+      <h1 className="mb-6 text-2xl font-bold">Mon planning</h1>
 
       {upcoming.length === 0 ? (
-        <p className="text-zinc-500">Aucun cours programmé prochainement.</p>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <CalendarDays className="mx-auto mb-3 size-10 text-muted-foreground" />
+            <p className="text-muted-foreground">
+              Aucun cours programm\u00e9 prochainement.
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground/70">
+              Vos prochains cr\u00e9neaux appara\u00eetront ici d\u00e8s qu&apos;ils seront confirm\u00e9s.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-3">
           {upcoming.map((c) => {
@@ -54,45 +119,43 @@ export default function MesCreneauxPage() {
               format(new Date(), "yyyy-MM-dd");
 
             return (
-              <div
+              <Card
                 key={c.id}
-                className={`rounded-xl border p-4 ${
+                className={
                   isToday
-                    ? "border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20"
-                    : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
-                }`}
+                    ? "border-primary/30 bg-primary/5"
+                    : undefined
+                }
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
-                      {c.matieres?.name || "Cours"}
-                      {c.matieres?.code && (
-                        <span className="ml-2 text-sm text-zinc-500">
-                          ({c.matieres.code})
-                        </span>
-                      )}
-                    </h3>
-                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                      {format(dateObj, "EEEE d MMMM", { locale: fr })}
-                      {isToday && (
-                        <span className="ml-2 rounded-full bg-blue-200 px-2 py-0.5 text-xs text-blue-800 dark:bg-blue-800 dark:text-blue-200">
-                          Aujourd&apos;hui
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    {c.matieres?.name || "Cours"}
+                    {c.matieres?.code && (
+                      <Badge variant="secondary">{c.matieres.code}</Badge>
+                    )}
+                    {isToday && <Badge>Aujourd&apos;hui</Badge>}
+                  </CardTitle>
+                  <CardAction>
+                    <span className="text-lg font-semibold">
                       {c.heure_debut} - {c.heure_fin}
-                    </p>
+                    </span>
+                  </CardAction>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <CalendarDays className="size-3.5" />
+                      {format(dateObj, "EEEE d MMMM yyyy", { locale: fr })}
+                    </span>
                     {c.salle && (
-                      <p className="text-sm text-zinc-500">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="size-3.5" />
                         Salle {c.salle}
-                      </p>
+                      </span>
                     )}
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
