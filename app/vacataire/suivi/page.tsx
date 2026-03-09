@@ -157,7 +157,7 @@ export default function VacataireSuiviPage() {
   function handleExportPDF() {
     const realises = creneaux.filter((c) => c.status === "realise");
     if (realises.length === 0) {
-      toast.warning("Aucune session r\u00e9alis\u00e9e \u00e0 exporter");
+      toast.warning("Aucune session réalisée à exporter");
       return;
     }
     if (!intervenant) return;
@@ -210,7 +210,7 @@ export default function VacataireSuiviPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Suivi des heures</h1>
           <p className="text-sm text-muted-foreground">
-            R\u00e9capitulatif de vos heures et paiements
+            Récapitulatif de vos heures et paiements
           </p>
         </div>
         <Button variant="outline" onClick={handleExportPDF}>
@@ -225,11 +225,11 @@ export default function VacataireSuiviPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-emerald-600 mb-1">
               <CheckCircle2 className="size-4" />
-              <span className="text-xs font-medium">R\u00e9alis\u00e9es</span>
+              <span className="text-xs font-medium">Réalisées</span>
             </div>
             <p className="text-2xl font-bold">{stats.sessionsRealisees}</p>
             <p className="text-xs text-muted-foreground">
-              {stats.heuresRealisees.toFixed(1)}h valid\u00e9es
+              {stats.heuresRealisees.toFixed(1)}h validées
             </p>
           </CardContent>
         </Card>
@@ -237,11 +237,11 @@ export default function VacataireSuiviPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-blue-600 mb-1">
               <TrendingUp className="size-4" />
-              <span className="text-xs font-medium">HeTD valid\u00e9es</span>
+              <span className="text-xs font-medium">HeTD validées</span>
             </div>
             <p className="text-2xl font-bold">{stats.hetdRealisees.toFixed(1)}</p>
             <p className="text-xs text-muted-foreground">
-              + {stats.hetdConfirmees.toFixed(1)} confirm\u00e9es
+              + {stats.hetdConfirmees.toFixed(1)} confirmées
             </p>
           </CardContent>
         </Card>
@@ -251,9 +251,9 @@ export default function VacataireSuiviPage() {
               <Euro className="size-4" />
               <span className="text-xs font-medium">Montant brut</span>
             </div>
-            <p className="text-2xl font-bold">{stats.montantBrut.toFixed(0)} \u20ac</p>
+            <p className="text-2xl font-bold">{stats.montantBrut.toFixed(0)} €</p>
             <p className="text-xs text-muted-foreground">
-              sessions r\u00e9alis\u00e9es
+              sessions réalisées
             </p>
           </CardContent>
         </Card>
@@ -281,7 +281,7 @@ export default function VacataireSuiviPage() {
               <Clock className="size-4" />
               <span className="text-xs font-medium">En attente de paiement</span>
             </div>
-            <p className="text-2xl font-bold">{stats.montantNonPaye.toFixed(0)} \u20ac</p>
+            <p className="text-2xl font-bold">{stats.montantNonPaye.toFixed(0)} €</p>
             <p className="text-xs text-muted-foreground">
               {stats.sessionsNonPaye} session{stats.sessionsNonPaye !== 1 ? "s" : ""}
             </p>
@@ -291,9 +291,9 @@ export default function VacataireSuiviPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-emerald-600 mb-1">
               <Banknote className="size-4" />
-              <span className="text-xs font-medium">Pay\u00e9</span>
+              <span className="text-xs font-medium">Payé</span>
             </div>
-            <p className="text-2xl font-bold">{stats.montantPaye.toFixed(0)} \u20ac</p>
+            <p className="text-2xl font-bold">{stats.montantPaye.toFixed(0)} €</p>
             <p className="text-xs text-muted-foreground">
               {stats.sessionsPaye} session{stats.sessionsPaye !== 1 ? "s" : ""}
             </p>
@@ -303,11 +303,11 @@ export default function VacataireSuiviPage() {
 
       {/* Sessions list */}
       <div className="grid grid-cols-1 gap-6">
-        {/* R\u00e9alis\u00e9es */}
+        {/* Réalisées */}
         {realises.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Sessions r\u00e9alis\u00e9es ({realises.length})</CardTitle>
+              <CardTitle className="text-base">Sessions réalisées ({realises.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {realises.map((c) => (
@@ -317,11 +317,11 @@ export default function VacataireSuiviPage() {
           </Card>
         )}
 
-        {/* Confirm\u00e9es / \u00e0 venir */}
+        {/* Confirmées / à venir */}
         {confirmes.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Sessions confirm\u00e9es ({confirmes.length})</CardTitle>
+              <CardTitle className="text-base">Sessions confirmées ({confirmes.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {confirmes.map((c) => (
@@ -374,7 +374,7 @@ function CreneauRow({ creneau }: { creneau: Creneau }) {
             {creneau.heure_debut.slice(0, 5)}-{creneau.heure_fin.slice(0, 5)}
           </Badge>
           <Badge variant="secondary" className="text-[10px]">
-            {hours.toFixed(1)}h | {hetd.toFixed(1)} HeTD | {montant.toFixed(0)} \u20ac
+            {hours.toFixed(1)}h | {hetd.toFixed(1)} HeTD | {montant.toFixed(0)} €
           </Badge>
         </div>
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
@@ -399,12 +399,12 @@ function CreneauRow({ creneau }: { creneau: Creneau }) {
             variant="outline"
             className={`text-[10px] ${creneau.payment_status === "paye" ? "bg-emerald-100 text-emerald-700 border-emerald-300" : "bg-orange-100 text-orange-700 border-orange-300"}`}
           >
-            {creneau.payment_status === "paye" ? "Pay\u00e9" : "Non pay\u00e9"}
+            {creneau.payment_status === "paye" ? "Payé" : "Non payé"}
           </Badge>
         )}
         {creneau.status === "confirme" && (
           <Badge variant="outline" className="text-[10px] bg-blue-100 text-blue-700 border-blue-300">
-            Confirm\u00e9
+            Confirmé
           </Badge>
         )}
       </div>
