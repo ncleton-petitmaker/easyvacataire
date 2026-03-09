@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
+import { markAsRead } from "@/lib/whatsapp/evolution";
 
 // Simple deduplication (30s TTL)
 const seen = new Map<string, number>();
@@ -48,6 +49,9 @@ export async function POST(req: NextRequest) {
       "";
 
     if (!text.trim()) return NextResponse.json({ ok: true });
+
+    // Mark message as read immediately (blue double check)
+    await markAsRead(messageId, phone);
 
     const supabase = getServiceClient();
 

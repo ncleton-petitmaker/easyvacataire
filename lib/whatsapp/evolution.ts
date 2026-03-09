@@ -25,6 +25,45 @@ export async function getInstanceForEtablissement(
   return data?.evolution_instance_name || undefined;
 }
 
+/**
+ * Mark a message as read (blue double check) via Evolution API.
+ * Works with both Baileys and WhatsApp Business API.
+ */
+export async function markAsRead(
+  messageId: string,
+  phone: string,
+  instanceName?: string
+): Promise<void> {
+  try {
+    const evo = getEvolutionConfig();
+    const instance = instanceName || evo.instance;
+    const number = phone.startsWith("+") ? phone.substring(1) : phone;
+
+    await fetch(`${evo.url}/chat/markMessageAsRead/${instance}`, {
+      method: "PUT",
+      headers: {
+        apikey: evo.key,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        readMessages: [
+          {
+            remoteJid: `${number}@s.whatsapp.net`,
+            id: messageId,
+            fromMe: false,
+          },
+        ],
+      }),
+    });
+  } catch (err) {
+    console.error("[evolution] markAsRead failed:", err);
+  }
+}
+
+/**
+ * Send typing presence. Falls back silently on WhatsApp Business API
+ * (no typing indicator support in Cloud API).
+ */
 export async function sendTypingPresence(
   phone: string,
   instanceName?: string
@@ -34,7 +73,6 @@ export async function sendTypingPresence(
     const instance = instanceName || evo.instance;
     const number = phone.startsWith("+") ? phone.substring(1) : phone;
 
-    // Try composing presence (Baileys) — silently fails on Business API
     await fetch(`${evo.url}/chat/sendPresence/${instance}`, {
       method: "POST",
       headers: {
@@ -46,12 +84,9 @@ export async function sendTypingPresence(
         presence: "composing",
         delay: 10000,
       }),
-    }).catch(() => {
-      // Expected to fail on WhatsApp Business API — no typing indicator support
-    });
-  } catch (err) {
-    // Non-critical, don't block the flow
-    console.error("[evolution] sendTypingPresence failed:", err);
+    }).catch(() => {});
+  } catch {
+    // Non-critical
   }
 }
 
