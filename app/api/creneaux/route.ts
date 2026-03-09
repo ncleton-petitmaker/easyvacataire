@@ -8,14 +8,26 @@ export async function GET(req: NextRequest) {
   const from = req.nextUrl.searchParams.get("from");
   const to = req.nextUrl.searchParams.get("to");
 
+  const status = req.nextUrl.searchParams.get("status");
+
   let query = supabase
     .from("creneaux")
     .select(
       "*, intervenants(id, first_name, last_name, phone), matieres(id, name, code)"
     )
-    .eq("status", "confirme")
     .order("date", { ascending: true })
     .order("heure_debut", { ascending: true });
+
+  if (status) {
+    const statuses = status.split(",");
+    if (statuses.length === 1) {
+      query = query.eq("status", statuses[0]);
+    } else {
+      query = query.in("status", statuses);
+    }
+  } else {
+    query = query.in("status", ["confirme", "realise"]);
+  }
 
   if (etablissementId) {
     query = query.eq("etablissement_id", etablissementId);

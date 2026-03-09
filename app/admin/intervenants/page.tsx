@@ -58,7 +58,9 @@ import {
   Trash2,
   Search,
   Users,
+  ChevronRight,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type Intervenant = {
   id: string;
@@ -88,6 +90,7 @@ export default function IntervenantsPage() {
   const [importing, setImporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const load = useCallback(async () => {
     if (!etablissementId) return;
@@ -197,9 +200,9 @@ export default function IntervenantsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Intervenants</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Vacataires</h1>
           <p className="text-sm text-muted-foreground">
-            Gérez les intervenants de votre établissement.
+            Gérez les vacataires de votre établissement.
           </p>
         </div>
         <div className="flex gap-2">
@@ -407,7 +410,11 @@ export default function IntervenantsPage() {
               </TableHeader>
               <TableBody>
                 {filteredIntervenants.map((i) => (
-                  <TableRow key={i.id}>
+                  <TableRow
+                    key={i.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => router.push(`/admin/intervenants/${i.id}`)}
+                  >
                     <TableCell className="font-medium">
                       {i.first_name} {i.last_name}
                     </TableCell>
@@ -428,36 +435,43 @@ export default function IntervenantsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <AlertDialog>
-                        <AlertDialogTrigger
-                          render={
-                            <Button variant="ghost" size="icon-sm" />
-                          }
-                        >
-                          <Trash2 className="size-4 text-destructive" />
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Désactiver cet intervenant ?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              L&apos;intervenant {i.first_name} {i.last_name} sera
-                              désactivé. Cette action peut être annulée par un
-                              administrateur.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Annuler</AlertDialogCancel>
-                            <AlertDialogAction
-                              variant="destructive"
-                              onClick={() => handleDelete(i.id)}
-                            >
-                              Désactiver
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <div className="flex items-center gap-1">
+                        <AlertDialog>
+                          <AlertDialogTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                              />
+                            }
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Désactiver cet intervenant ?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                L&apos;intervenant {i.first_name} {i.last_name} sera
+                                désactivé. Cette action peut être annulée par un
+                                administrateur.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction
+                                variant="destructive"
+                                onClick={() => handleDelete(i.id)}
+                              >
+                                Désactiver
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                        <ChevronRight className="size-4 text-muted-foreground" />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
