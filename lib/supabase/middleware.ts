@@ -54,6 +54,12 @@ export async function updateSession(request: NextRequest) {
     const role = user.user_metadata?.role as string | undefined;
 
     // Protect admin-only API routes
+    // Routes accessibles aux vacataires (exclues de la protection admin)
+    const vacataireAllowedPrefixes = [
+      "/api/intervenants/buffer",
+    ];
+    const isVacataireAllowed = vacataireAllowedPrefixes.some((p) => pathname.startsWith(p));
+
     const adminApiPrefixes = [
       "/api/besoins",
       "/api/matching",
@@ -68,7 +74,7 @@ export async function updateSession(request: NextRequest) {
     if (superAdminApiPrefixes.some((p) => pathname.startsWith(p)) && role !== "super_admin") {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
-    if (adminApiPrefixes.some((p) => pathname.startsWith(p)) && role !== "admin" && role !== "super_admin") {
+    if (adminApiPrefixes.some((p) => pathname.startsWith(p)) && !isVacataireAllowed && role !== "admin" && role !== "super_admin") {
       return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
     }
 
