@@ -26,67 +26,62 @@ export async function getInstanceForEtablissement(
 }
 
 /**
- * Mark a message as read (blue double check) via Evolution API.
- * Works with both Baileys and WhatsApp Business API.
+ * Mark as read + show typing indicator via Meta Cloud API directly.
+ * Evolution API ne supporte pas le typing sur Business API,
+ * donc on appelle graph.facebook.com directement.
  */
-export async function markAsRead(
-  messageId: string,
-  phone: string,
-  instanceName?: string
+export async function markAsReadAndType(
+  whatsappMessageId: string
 ): Promise<void> {
-  try {
-    const evo = getEvolutionConfig();
-    const instance = instanceName || evo.instance;
-    const number = phone.startsWith("+") ? phone.substring(1) : phone;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
 
-    await fetch(`${evo.url}/chat/markMessageAsRead/${instance}`, {
-      method: "PUT",
-      headers: {
-        apikey: evo.key,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        readMessages: [
-          {
-            remoteJid: `${number}@s.whatsapp.net`,
-            id: messageId,
-            fromMe: false,
-          },
-        ],
-      }),
-    });
+  if (!phoneNumberId || !accessToken) return;
+
+  try {
+    await fetch(
+      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          status: "read",
+          message_id: whatsappMessageId,
+          typing_indicator: { type: "text" },
+        }),
+      }
+    );
   } catch (err) {
-    console.error("[evolution] markAsRead failed:", err);
+    console.error("[whatsapp] markAsReadAndType failed:", err);
   }
 }
 
 /**
- * Send typing presence. Falls back silently on WhatsApp Business API
- * (no typing indicator support in Cloud API).
+ * Alias pour compatibilité — appelle markAsReadAndType si le messageId est fourni.
+ */
+export async function markAsRead(
+  messageId: string,
+  _phone: string,
+  _instanceName?: string
+): Promise<void> {
+  await markAsReadAndType(messageId);
+}
+
+/**
+ * Send typing presence via Meta Cloud API.
+ * Envoie le typing indicator directement à Meta (pas via Evolution).
  */
 export async function sendTypingPresence(
-  phone: string,
-  instanceName?: string
+  _phone: string,
+  _instanceName?: string,
+  whatsappMessageId?: string
 ): Promise<void> {
-  try {
-    const evo = getEvolutionConfig();
-    const instance = instanceName || evo.instance;
-    const number = phone.startsWith("+") ? phone.substring(1) : phone;
-
-    await fetch(`${evo.url}/chat/sendPresence/${instance}`, {
-      method: "POST",
-      headers: {
-        apikey: evo.key,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        number,
-        presence: "composing",
-        delay: 10000,
-      }),
-    }).catch(() => {});
-  } catch {
-    // Non-critical
+  if (whatsappMessageId) {
+    await markAsReadAndType(whatsappMessageId);
   }
 }
 
