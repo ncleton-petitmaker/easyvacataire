@@ -14,6 +14,7 @@ import {
   isSameDay,
   isBefore,
   startOfDay,
+  getDay,
 } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -33,17 +34,30 @@ const TIME_OPTIONS = [
 
 export type BusySlot = { start: string; end: string };
 
+export type RecurringRule = {
+  day_of_week: number; // 0=lundi, 6=dimanche
+  heure_debut: string;
+  heure_fin: string;
+};
+
 type Props = {
   slots: Slot[];
   busySlots?: BusySlot[];
+  recurringRules?: RecurringRule[];
   onAddSlot: (slot: Omit<Slot, "id">) => void;
   onRemoveSlot: (slotId: string) => void;
   readOnly?: boolean;
 };
 
+function getDayOfWeekMon(date: Date): number {
+  const d = getDay(date); // 0=dimanche
+  return d === 0 ? 6 : d - 1; // 0=lundi
+}
+
 export function AvailabilityCalendar({
   slots,
   busySlots = [],
+  recurringRules = [],
   onAddSlot,
   onRemoveSlot,
   readOnly = false,
@@ -78,6 +92,16 @@ export function AvailabilityCalendar({
     }
     return map;
   }, [busySlots]);
+
+  // Index recurring rules by day_of_week
+  const rulesByDay = useMemo(() => {
+    const map = new Map<number, RecurringRule[]>();
+    for (const r of recurringRules) {
+      if (!map.has(r.day_of_week)) map.set(r.day_of_week, []);
+      map.get(r.day_of_week)!.push(r);
+    }
+    return map;
+  }, [recurringRules]);
 
   function handleAddSlot() {
     if (!selectedDate || readOnly) return;
@@ -130,12 +154,14 @@ export function AvailabilityCalendar({
               const dateStr = format(day, "yyyy-MM-dd");
               const daySlots = slotsByDate.get(dateStr) || [];
               const dayBusy = busyByDate.get(dateStr) || [];
+              const dayRules = rulesByDay.get(getDayOfWeekMon(day)) || [];
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isSelected = selectedDate && isSameDay(day, selectedDate);
               const isToday = isSameDay(day, today);
               const isPast = isBefore(day, today);
               const hasSlots = daySlots.length > 0;
               const hasBusy = dayBusy.length > 0;
+              const hasRules = dayRules.length > 0;
 
               return (
                 <button
@@ -161,6 +187,9 @@ export function AvailabilityCalendar({
                     {hasSlots && !isSelected && (
                       <span className="h-1 w-1 rounded-full bg-emerald-500" />
                     )}
+                    {hasRules && !isSelected && (
+                      <span className="h-1 w-1 rounded-full bg-orange-500" />
+                    )}
                     {hasBusy && !isSelected && (
                       <span className="h-1 w-1 rounded-full bg-red-500" />
                     )}
@@ -180,6 +209,21 @@ export function AvailabilityCalendar({
               <h3 className="mb-4 text-sm font-semibold text-zinc-800">
                 {format(selectedDate, "EEEE d MMMM", { locale: fr })}
               </h3>
+
+              {/* Recurring unavailability for this day */}
+              {(rulesByDay.get(getDayOfWeekMon(selectedDate)) || []).map(
+                (rule, i) => (
+                  <div
+                    key={`rule-${i}`}
+                    className="mb-2 flex items-center justify-between rounded-xl bg-orange-50 p-3"
+                  >
+                    <span className="text-sm font-medium text-orange-800">
+                      {rule.heure_debut} — {rule.heure_fin}
+                    </span>
+                    <span className="text-[10px] text-orange-500">Indisponible</span>
+                  </div>
+                )
+              )}
 
               {/* Google Calendar busy slots */}
               {(busyByDate.get(format(selectedDate, "yyyy-MM-dd")) || []).map(
@@ -244,7 +288,7 @@ export function AvailabilityCalendar({
                     </div>
                     <div>
                       <label className="mb-1 block text-xs text-zinc-500">
-                        A
+                        À
                       </label>
                       <select
                         value={heureFin}
