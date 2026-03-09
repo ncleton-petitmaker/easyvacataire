@@ -620,11 +620,11 @@ export default function MesCreneauxPage() {
       {/* Légende */}
       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full ring-2 ring-emerald-400 bg-emerald-100" />
+          <span className="h-2 w-2 rounded-full bg-emerald-600" />
           Match confirmé
         </span>
         <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="h-2 w-2 rounded-full bg-emerald-200" />
           Disponible
         </span>
         <span className="flex items-center gap-1">

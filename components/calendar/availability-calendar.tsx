@@ -285,11 +285,11 @@ export function AvailabilityCalendar({
 
         {/* Confirmed */}
         {(confirmedByDate.get(dateStr) || []).map((c) => (
-          <div key={c.id} className="mb-2 flex items-center gap-2 rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3">
-            <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+          <div key={c.id} className="mb-2 flex items-center gap-2 rounded-xl bg-emerald-600 p-3">
+            <CheckCircle2 className="size-4 text-white shrink-0" />
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-emerald-800">{c.heure_debut} — {c.heure_fin}</div>
-              <div className="text-xs text-emerald-600 truncate">
+              <div className="text-sm font-semibold text-white">{c.heure_debut} — {c.heure_fin}</div>
+              <div className="text-xs text-emerald-100 truncate">
                 [{c.session_type || "TD"}] {c.matiere || "Cours"}{c.salle ? ` · ${c.salle}` : ""}
               </div>
             </div>
@@ -318,8 +318,8 @@ export function AvailabilityCalendar({
 
         {/* Slots */}
         {(slotsByDate.get(dateStr) || []).map((slot) => (
-          <div key={slot.id || `${slot.date}-${slot.heure_debut}`} className="mb-2 flex items-center justify-between rounded-xl bg-emerald-50 p-3">
-            <span className="text-sm font-medium text-emerald-800">{slot.heure_debut} — {slot.heure_fin}</span>
+          <div key={slot.id || `${slot.date}-${slot.heure_debut}`} className="mb-2 flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200 p-3">
+            <span className="text-sm font-medium text-emerald-600">{slot.heure_debut} — {slot.heure_fin}</span>
             {!readOnly && slot.id && (
               <button onClick={() => onRemoveSlot(slot.id!)} className="text-xs text-red-400 hover:text-red-600">
                 Retirer
@@ -407,7 +407,7 @@ export function AvailabilityCalendar({
           );
         })}
 
-        {/* Availability slots (green) */}
+        {/* Availability slots (vert clair) */}
         {daySlots.map((slot, i) => {
           const top = timeToYClamped(slot.heure_debut);
           const bottom = timeToYClamped(slot.heure_fin);
@@ -415,10 +415,10 @@ export function AvailabilityCalendar({
           return (
             <div
               key={`slot-${i}`}
-              className={`absolute left-0 right-0 ${mx} rounded bg-emerald-100/70 border border-emerald-200 pointer-events-none overflow-hidden`}
+              className={`absolute left-0 right-0 ${mx} rounded bg-emerald-50 border border-emerald-200 pointer-events-none overflow-hidden`}
               style={{ top, height }}
             >
-              <div className="px-1 py-0.5 text-[10px] text-emerald-700 truncate">
+              <div className="px-1 py-0.5 text-[10px] text-emerald-500 truncate">
                 {slot.heure_debut}–{slot.heure_fin}
               </div>
             </div>
@@ -447,7 +447,7 @@ export function AvailabilityCalendar({
           );
         })}
 
-        {/* Confirmed (green ring) */}
+        {/* Confirmed (vert foncé) */}
         {dayConfirmed.map((c) => {
           const top = timeToYClamped(c.heure_debut);
           const bottom = timeToYClamped(c.heure_fin);
@@ -455,15 +455,15 @@ export function AvailabilityCalendar({
           return (
             <div
               key={c.id}
-              className={`absolute left-0 right-0 ${mx} rounded bg-emerald-100 border-2 border-emerald-400 shadow-sm pointer-events-none overflow-hidden`}
+              className={`absolute left-0 right-0 ${mx} rounded bg-emerald-600 border-2 border-emerald-700 shadow-sm pointer-events-none overflow-hidden`}
               style={{ top, height }}
             >
               <div className="px-1 py-0.5">
-                <div className="text-[10px] font-semibold text-emerald-800 truncate">
+                <div className="text-[10px] font-semibold text-white truncate">
                   {c.heure_debut}–{c.heure_fin}
                 </div>
                 {!isCompact && (
-                  <div className="text-[9px] text-emerald-600 truncate">
+                  <div className="text-[9px] text-emerald-100 truncate">
                     [{c.session_type}] {c.matiere || "Cours"}
                   </div>
                 )}
@@ -523,18 +523,18 @@ export function AvailabilityCalendar({
                           : isSelected
                             ? "bg-[#4243C4] font-semibold text-white shadow-md"
                             : hasConfirmed
-                              ? "bg-emerald-100 font-semibold text-emerald-800 ring-2 ring-emerald-400 hover:bg-emerald-200"
+                              ? "bg-emerald-600 font-semibold text-white ring-2 ring-emerald-700 hover:bg-emerald-700"
                               : isToday
                                 ? "bg-[#4243C4]/10 font-semibold text-[#4243C4]"
                                 : hasSlots
-                                  ? "bg-emerald-50 font-medium text-emerald-700 hover:bg-emerald-100"
+                                  ? "bg-emerald-50 font-medium text-emerald-600 hover:bg-emerald-100"
                                   : "text-zinc-700 hover:bg-zinc-100"
                     }`}
                   >
                     {format(day, "d")}
                     <div className="absolute bottom-1 flex gap-0.5">
-                      {hasConfirmed && !isSelected && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
-                      {hasSlots && !hasConfirmed && !isSelected && <span className="h-1 w-1 rounded-full bg-emerald-500" />}
+                      {hasConfirmed && !isSelected && <span className="h-1.5 w-1.5 rounded-full bg-emerald-800" />}
+                      {hasSlots && !hasConfirmed && !isSelected && <span className="h-1 w-1 rounded-full bg-emerald-300" />}
                       {hasRules && !isSelected && <span className="h-1 w-1 rounded-full bg-amber-500" />}
                       {hasBusy && !isSelected && <span className="h-1 w-1 rounded-full bg-red-500" />}
                     </div>
