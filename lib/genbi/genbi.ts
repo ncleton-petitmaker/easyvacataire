@@ -364,7 +364,9 @@ export async function runGenBIPipeline(
     console.log("[genbi] SQL généré :", sql);
 
     // Exécuter
+    console.log("[genbi] Exécution via Wren...");
     const result = await executeReadonlySQL(sql, ctx.etablissementId);
+    console.log("[genbi] Résultat :", result.rowCount, "lignes");
 
     // Formater selon le type d'intent
     if (intent === "genbi_stats") {

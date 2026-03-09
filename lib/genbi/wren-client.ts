@@ -52,6 +52,7 @@ export interface WrenQueryResult {
  * Exécute une requête SQL via Wren ibis-server.
  */
 export async function wrenQuery(sql: string): Promise<WrenQueryResult> {
+  console.log("[wren] Query URL:", `${WREN_IBIS_URL}/v2/connector/postgres/query`);
   const res = await fetch(`${WREN_IBIS_URL}/v2/connector/postgres/query`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -74,6 +75,7 @@ export async function wrenQuery(sql: string): Promise<WrenQueryResult> {
  * Valide une requête SQL sans l'exécuter (dry run).
  */
 export async function wrenDryRun(sql: string): Promise<boolean> {
+  console.log("[wren] Dry run...");
   const res = await fetch(
     `${WREN_IBIS_URL}/v2/connector/postgres/query?dryRun=true`,
     {
@@ -87,5 +89,6 @@ export async function wrenDryRun(sql: string): Promise<boolean> {
     }
   );
 
+  console.log("[wren] Dry run status:", res.status);
   return res.status === 204;
 }
