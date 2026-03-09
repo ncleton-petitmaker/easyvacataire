@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   format,
   startOfMonth,
@@ -10,7 +10,7 @@ import {
 import { fr } from "date-fns/locale";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Unplug, Wand2, Ban, Trash2 } from "lucide-react";
+import { Loader2, Unplug, Wand2, ChevronDown, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,9 +56,11 @@ export default function MesCreneauxPage() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [autoLoading, setAutoLoading] = useState(false);
+  const intervenantIdRef = useRef<string | null>(null);
 
   // Recurring rules
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [showRuleForm, setShowRuleForm] = useState(false);
   const [ruleDay, setRuleDay] = useState(2); // mercredi par défaut
   const [ruleStart, setRuleStart] = useState("13:00");
@@ -130,6 +132,7 @@ export default function MesCreneauxPage() {
       }
 
       setIntervenantId(intervenant.id);
+      intervenantIdRef.current = intervenant.id;
 
       const [creneauxRes, dispoRes] = await Promise.all([
         fetch(
@@ -173,6 +176,57 @@ export default function MesCreneauxPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Auto-sync Google Calendar + remplir créneaux libres toutes les 15 min
+  const syncGoogle = useCallback(async () => {
+    const id = intervenantIdRef.current;
+    if (!id) return;
+
+    // Rafraîchir les busy slots
+    await loadBusySlots(id);
+
+    // Auto-remplir les créneaux libres (silencieux)
+    try {
+      const now = new Date();
+      const from = format(now, "yyyy-MM-dd");
+      const to = format(endOfMonth(addMonths(now, 2)), "yyyy-MM-dd");
+      await fetch("/api/calendar/auto-dispos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          intervenant_id: id,
+          from,
+          to,
+          heure_debut: "08:00",
+          heure_fin: "19:00",
+        }),
+      });
+    } catch {
+      // silencieux
+    }
+
+    // Recharger les dispos
+    try {
+      const res = await fetch(`/api/disponibilites?intervenant_id=${id}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setSlots(
+          data.map(
+            (d: { id: string; date: string; heure_debut: string; heure_fin: string }) => ({
+              id: d.id, date: d.date, heure_debut: d.heure_debut, heure_fin: d.heure_fin,
+            })
+          )
+        );
+      }
+    } catch {
+      // silencieux
+    }
+  }, [loadBusySlots]);
+
+  useEffect(() => {
+    const interval = setInterval(syncGoogle, 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [syncGoogle]);
 
   async function handleAddSlot(slot: Omit<Slot, "id">) {
     if (!intervenantId) return;
@@ -414,109 +468,111 @@ export default function MesCreneauxPage() {
         </div>
       )}
 
-      {/* Indisponibilités récurrentes */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-zinc-800 flex items-center gap-2">
-            <Ban className="size-4 text-amber-500" />
-            Indisponibilités récurrentes
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            onClick={() => setShowRuleForm(!showRuleForm)}
-          >
-            {showRuleForm ? "Annuler" : "+ Ajouter une règle"}
-          </Button>
-        </div>
+      {/* Indisponibilités récurrentes — compact collapsible */}
+      <div className="border-b border-zinc-100 pb-2">
+        <button
+          onClick={() => setRulesOpen(!rulesOpen)}
+          className="flex w-full items-center gap-2 py-1 text-xs text-zinc-500 hover:text-zinc-700"
+        >
+          <ChevronDown className={`size-3.5 transition-transform ${rulesOpen ? "rotate-0" : "-rotate-90"}`} />
+          Indisponibilités récurrentes
+          {recurringRules.length > 0 && (
+            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+              {recurringRules.length}
+            </span>
+          )}
+          {!rulesOpen && recurringRules.length > 0 && (
+            <span className="text-[10px] text-zinc-400 ml-auto">
+              {recurringRules.map((r) => `${JOURS[r.day_of_week].slice(0, 3)} ${r.heure_debut.slice(0, 5)}-${r.heure_fin.slice(0, 5)}`).join(" · ")}
+            </span>
+          )}
+        </button>
 
-        {showRuleForm && (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-3">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div>
-                <label className="mb-1 block text-xs text-zinc-500">Jour</label>
-                <select
-                  value={ruleDay}
-                  onChange={(e) => setRuleDay(Number(e.target.value))}
-                  className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
-                >
-                  {JOURS.map((j, i) => (
-                    <option key={i} value={i}>{j}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-zinc-500">De</label>
-                <select
-                  value={ruleStart}
-                  onChange={(e) => setRuleStart(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
-                >
-                  {TIME_OPTIONS.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-zinc-500">À</label>
-                <select
-                  value={ruleEnd}
-                  onChange={(e) => setRuleEnd(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
-                >
-                  {TIME_OPTIONS.filter((t) => t > ruleStart).map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-zinc-500">Motif (optionnel)</label>
-                <input
-                  type="text"
-                  value={ruleLabel}
-                  onChange={(e) => setRuleLabel(e.target.value)}
-                  placeholder="Ex: cours à l'extérieur"
-                  className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
-                />
-              </div>
-            </div>
-            <button
-              onClick={handleAddRule}
-              className="rounded-lg bg-amber-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-amber-600"
-            >
-              Ajouter cette règle
-            </button>
-          </div>
-        )}
-
-        {recurringRules.length > 0 ? (
-          <div className="space-y-1.5">
+        {rulesOpen && (
+          <div className="mt-2 space-y-2 pl-5">
             {recurringRules.map((rule) => (
               <div
                 key={rule.id}
-                className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2"
+                className="flex items-center justify-between text-xs"
               >
-                <span className="text-sm text-amber-800">
+                <span className="text-zinc-600">
                   <span className="font-medium">{JOURS[rule.day_of_week]}</span>{" "}
                   {rule.heure_debut.slice(0, 5)} — {rule.heure_fin.slice(0, 5)}
                   {rule.label && (
-                    <span className="text-amber-500 ml-2">({rule.label})</span>
+                    <span className="text-zinc-400 ml-1">({rule.label})</span>
                   )}
                 </span>
                 <button
                   onClick={() => handleDeleteRule(rule.id)}
-                  className="text-red-400 hover:text-red-600"
+                  className="text-red-400 hover:text-red-600 ml-2"
                 >
-                  <Trash2 className="size-3.5" />
+                  <Trash2 className="size-3" />
                 </button>
               </div>
             ))}
+
+            {showRuleForm ? (
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2 space-y-2">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                  <select
+                    value={ruleDay}
+                    onChange={(e) => setRuleDay(Number(e.target.value))}
+                    className="rounded border border-zinc-200 px-1.5 py-1 text-xs"
+                  >
+                    {JOURS.map((j, i) => (
+                      <option key={i} value={i}>{j}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={ruleStart}
+                    onChange={(e) => setRuleStart(e.target.value)}
+                    className="rounded border border-zinc-200 px-1.5 py-1 text-xs"
+                  >
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={ruleEnd}
+                    onChange={(e) => setRuleEnd(e.target.value)}
+                    className="rounded border border-zinc-200 px-1.5 py-1 text-xs"
+                  >
+                    {TIME_OPTIONS.filter((t) => t > ruleStart).map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={ruleLabel}
+                    onChange={(e) => setRuleLabel(e.target.value)}
+                    placeholder="Motif"
+                    className="rounded border border-zinc-200 px-1.5 py-1 text-xs"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddRule}
+                    className="rounded bg-[#4243C4] px-3 py-1 text-xs font-medium text-white hover:bg-[#3234A0]"
+                  >
+                    Ajouter
+                  </button>
+                  <button
+                    onClick={() => setShowRuleForm(false)}
+                    className="text-xs text-zinc-400 hover:text-zinc-600"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowRuleForm(true)}
+                className="text-xs text-[#4243C4] hover:underline"
+              >
+                + Ajouter une règle
+              </button>
+            )}
           </div>
-        ) : (
-          <p className="text-xs text-zinc-400">
-            Aucune règle. Ajoutez des créneaux où vous n&apos;êtes jamais disponible (ex: mercredi après-midi).
-          </p>
         )}
       </div>
 
