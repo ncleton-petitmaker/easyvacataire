@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { Smartphone, KeyRound, Loader2, ArrowLeft, MessageCircle } from "lucide-react";
+import { Mail, KeyRound, Loader2, ArrowLeft } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -15,28 +15,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-const WHATSAPP_NUMBER = "33768912695";
-
-type Step = "phone" | "code";
+type Step = "email" | "code";
 
 export default function LoginPage() {
-  const [step, setStep] = useState<Step>("phone");
-  const [phone, setPhone] = useState("+33");
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function sendCodeViaWhatsApp() {
+  async function requestCode() {
     setError("");
-    if (!phone || !/^\+\d{8,15}$/.test(phone)) {
-      setError("Numéro de téléphone invalide");
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Adresse email invalide");
       return;
     }
-    // Ouvre WhatsApp avec "Code" pré-rempli — le webhook répond automatiquement avec l'OTP
-    const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Code")}`;
-    window.open(waLink, "_blank");
-    // Affiche directement le champ de saisie du code
-    setStep("code");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Erreur");
+        return;
+      }
+      setStep("code");
+      toast.success("Code envoyé par email");
+    } catch {
+      setError("Erreur de connexion");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function verifyOtp() {
@@ -46,13 +58,11 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, code }),
+        body: JSON.stringify({ email: email.toLowerCase().trim(), code }),
       });
       const data = await res.json();
       if (!res.ok) {
-        const msg = data.error || "Erreur";
-        setError(msg);
-        toast.error(msg);
+        setError(data.error || "Erreur");
         return;
       }
 
@@ -70,9 +80,7 @@ export default function LoginPage() {
         window.location.href = "/mes/creneaux";
       }
     } catch {
-      const msg = "Erreur de connexion";
-      setError(msg);
-      toast.error(msg);
+      setError("Erreur de connexion");
     } finally {
       setLoading(false);
     }
@@ -85,44 +93,56 @@ export default function LoginPage() {
           <img src="/logo.svg" alt="EasyVacataire" className="mb-2 h-8" />
           <CardTitle className="text-lg">Connexion</CardTitle>
           <CardDescription>
-            Connectez-vous avec votre numéro WhatsApp
+            Recevez un code de connexion par email
           </CardDescription>
         </CardHeader>
 
         <CardContent>
-          {step === "phone" && (
+          {step === "email" && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">
-                  <Smartphone className="inline-block size-4 mr-1.5 -mt-0.5" />
-                  Numéro de téléphone
+                <Label htmlFor="email">
+                  <Mail className="inline-block size-4 mr-1.5 -mt-0.5" />
+                  Adresse email
                 </Label>
                 <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+33612345678"
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nom@exemple.fr"
+                  autoFocus
+                  onKeyDown={(e) => e.key === "Enter" && requestCode()}
                 />
               </div>
               <Button
-                onClick={sendCodeViaWhatsApp}
-                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                onClick={requestCode}
+                disabled={loading}
+                className="w-full"
               >
-                <MessageCircle className="size-4 mr-2" />
-                Recevoir un code sur WhatsApp
+                {loading ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin mr-2" />
+                    Envoi en cours...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="size-4 mr-2" />
+                    Recevoir un code
+                  </>
+                )}
               </Button>
             </div>
           )}
 
           {step === "code" && (
             <div className="space-y-4">
-              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-3 text-center space-y-1">
-                <p className="text-sm font-medium text-green-800 dark:text-green-300">
-                  Envoyez <strong>&laquo; Code &raquo;</strong> dans la conversation WhatsApp qui vient de s&apos;ouvrir
+              <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3 text-center space-y-1">
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                  Un code a été envoyé à <strong>{email}</strong>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Vous recevrez votre code de connexion en retour
+                  Vérifiez vos spams si vous ne le trouvez pas
                 </p>
               </div>
               <div className="space-y-2">
@@ -140,6 +160,9 @@ export default function LoginPage() {
                   placeholder="000000"
                   className="text-center text-2xl font-mono tracking-widest"
                   autoFocus
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && code.length === 6 && verifyOtp()
+                  }
                 />
               </div>
               <Button
@@ -158,23 +181,27 @@ export default function LoginPage() {
               </Button>
               <Button
                 variant="ghost"
-                onClick={sendCodeViaWhatsApp}
-                className="w-full text-green-700"
+                onClick={() => {
+                  setLoading(false);
+                  requestCode();
+                }}
+                disabled={loading}
+                className="w-full"
               >
-                <MessageCircle className="size-4 mr-2" />
+                <Mail className="size-4 mr-2" />
                 Renvoyer un code
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => {
-                  setStep("phone");
+                  setStep("email");
                   setCode("");
                   setError("");
                 }}
                 className="w-full"
               >
                 <ArrowLeft className="size-4 mr-2" />
-                Changer de numéro
+                Changer d&apos;adresse
               </Button>
             </div>
           )}

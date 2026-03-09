@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getServiceClient } from "@/lib/supabase/server";
-import { phoneToEmail } from "@/lib/auth/phone-email";
 
 export async function POST(request: Request) {
   try {
-    const { phone, code } = await request.json();
+    const { email, code } = await request.json();
 
-    if (!phone || !/^\+\d{8,15}$/.test(phone)) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json(
-        { error: "Numero de telephone invalide" },
+        { error: "Adresse email invalide" },
         { status: 400 }
       );
     }
@@ -20,77 +19,70 @@ export async function POST(request: Request) {
       );
     }
 
+    const lowerEmail = email.toLowerCase().trim();
     const sb = getServiceClient();
 
-    // Test mode: skip OTP verification for allowed numbers
-    const testNumbers = ["+33760177267"];
-    const isTestMode = testNumbers.includes(phone);
+    // Find the latest unused, non-expired OTP for this email
+    // (otp_codes.phone column stores the email identifier)
+    const { data: otpRows } = await sb
+      .from("otp_codes")
+      .select("*")
+      .eq("phone", lowerEmail)
+      .eq("used", false)
+      .gte("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    if (!isTestMode) {
-      // Find the latest unused, non-expired OTP for this phone
-      const { data: otpRows } = await sb
-        .from("otp_codes")
-        .select("*")
-        .eq("phone", phone)
-        .eq("used", false)
-        .gte("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false })
-        .limit(1);
+    if (!otpRows || otpRows.length === 0) {
+      return NextResponse.json(
+        { error: "Code expiré ou introuvable. Redemandez un code." },
+        { status: 401 }
+      );
+    }
 
-      if (!otpRows || otpRows.length === 0) {
-        return NextResponse.json(
-          { error: "Code expire ou introuvable. Redemandez un code." },
-          { status: 401 }
-        );
-      }
+    const otp = otpRows[0];
 
-      const otp = otpRows[0];
-
-      // Check max attempts
-      if (otp.attempts >= 5) {
-        await sb
-          .from("otp_codes")
-          .update({ used: true })
-          .eq("id", otp.id);
-        return NextResponse.json(
-          { error: "Trop de tentatives. Redemandez un code." },
-          { status: 401 }
-        );
-      }
-
-      // Compare code with hash
-      const valid = await bcrypt.compare(code, otp.code_hash);
-      if (!valid) {
-        await sb
-          .from("otp_codes")
-          .update({ attempts: otp.attempts + 1 })
-          .eq("id", otp.id);
-        return NextResponse.json(
-          { error: "Code incorrect" },
-          { status: 401 }
-        );
-      }
-
-      // Mark OTP as used
+    // Check max attempts
+    if (otp.attempts >= 5) {
       await sb
         .from("otp_codes")
         .update({ used: true })
         .eq("id", otp.id);
+      return NextResponse.json(
+        { error: "Trop de tentatives. Redemandez un code." },
+        { status: 401 }
+      );
     }
 
-    // Determine synthetic email for this phone
-    const email = phoneToEmail(phone);
+    // Compare code with hash
+    const valid = await bcrypt.compare(code, otp.code_hash);
+    if (!valid) {
+      await sb
+        .from("otp_codes")
+        .update({ attempts: otp.attempts + 1 })
+        .eq("id", otp.id);
+      return NextResponse.json(
+        { error: "Code incorrect" },
+        { status: 401 }
+      );
+    }
 
-    // Find or create auth user
+    // Mark OTP as used
+    await sb
+      .from("otp_codes")
+      .update({ used: true })
+      .eq("id", otp.id);
+
+    // Find or create auth user using the real email
     const { data: userList } = await sb.auth.admin.listUsers();
-    let authUser = userList?.users?.find((u) => u.email === email);
+    let authUser = userList?.users?.find((u) => u.email === lowerEmail);
 
     if (!authUser) {
       const { data: created, error: createError } =
         await sb.auth.admin.createUser({
-          email,
+          email: lowerEmail,
           email_confirm: true,
-          user_metadata: { phone, auth_method: "whatsapp_otp" },
+          user_metadata: { email: lowerEmail, auth_method: "email_otp" },
         });
       if (createError) {
         console.error("Failed to create auth user:", createError);
@@ -102,24 +94,24 @@ export async function POST(request: Request) {
       authUser = created.user;
     }
 
-    // Link user_id if not already set (intervenant or super_admin)
+    // Link user_id if not already set
     await sb
       .from("intervenants")
       .update({ user_id: authUser.id })
-      .eq("phone", phone)
+      .eq("email", lowerEmail)
       .is("user_id", null);
 
     await sb
       .from("super_admins")
       .update({ user_id: authUser.id })
-      .eq("phone", phone)
+      .eq("email", lowerEmail)
       .is("user_id", null);
 
     // Generate magic link to get session tokens
     const { data: linkData, error: linkError } =
       await sb.auth.admin.generateLink({
         type: "magiclink",
-        email,
+        email: lowerEmail,
       });
 
     if (linkError || !linkData?.properties?.hashed_token) {
@@ -150,7 +142,7 @@ export async function POST(request: Request) {
     const { data: superAdmin } = await sb2
       .from("super_admins")
       .select("id")
-      .eq("phone", phone)
+      .eq("email", lowerEmail)
       .eq("is_active", true)
       .limit(1)
       .maybeSingle();
@@ -162,16 +154,16 @@ export async function POST(request: Request) {
       const { data: intervenant } = await sb2
         .from("intervenants")
         .select("role")
-        .eq("phone", phone)
+        .eq("email", lowerEmail)
         .eq("is_active", true)
         .limit(1)
         .maybeSingle();
       if (intervenant?.role === "admin") role = "admin";
     }
 
-    // Persist role in user_metadata so it survives page refresh
+    // Persist role in user_metadata
     await sb2.auth.admin.updateUserById(authUser.id, {
-      user_metadata: { role, phone },
+      user_metadata: { role, email: lowerEmail },
     });
 
     return NextResponse.json({
