@@ -136,6 +136,7 @@ export async function confirmMatch(
       heure_debut: besoin.heure_debut,
       heure_fin: besoin.heure_fin,
       salle: besoin.salle,
+      session_type: besoin.session_type || "TD",
       status: "confirme",
     })
     .select()

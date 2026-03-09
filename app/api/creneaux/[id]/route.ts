@@ -10,7 +10,7 @@ export async function PATCH(
   const supabase = getServiceClient();
 
   // Only allow updating specific fields
-  const allowed = ["status", "salle", "heure_debut", "heure_fin", "date"];
+  const allowed = ["status", "salle", "heure_debut", "heure_fin", "date", "session_type", "payment_status"];
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) update[key] = body[key];

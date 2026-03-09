@@ -18,8 +18,14 @@ import {
   Loader2,
   MapPin,
   AlertCircle,
+  Euro,
+  FileDown,
+  GaugeCircle,
+  Banknote,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getHeTD, getMontantBrut, PLAFOND_HETD } from "@/lib/hetd";
+import { generateEtatServiceFait } from "@/lib/pdf/etat-service-fait";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -49,6 +55,8 @@ type Creneau = {
   heure_fin: string;
   salle: string | null;
   status: string;
+  session_type: string;
+  payment_status: string;
   intervenants: { id: string; first_name: string; last_name: string } | null;
   matieres: { id: string; name: string; code: string | null } | null;
 };
@@ -130,23 +138,42 @@ export default function IntervenantDetailPage() {
     let sessionsConfirmees = 0;
     let sessionsNonRealisees = 0;
     let sessionsAVenir = 0;
+    let hetdRealisees = 0;
+    let hetdConfirmees = 0;
+    let montantBrut = 0;
+    let montantAPayer = 0;
+    let sessionsPaye = 0;
+    let sessionsNonPaye = 0;
     const matiereSet = new Set<string>();
 
     for (const c of creneaux) {
       const h = parseHours(c.heure_debut, c.heure_fin);
+      const type = c.session_type || "TD";
       if (c.matieres?.name) matiereSet.add(c.matieres.name);
 
       if (c.status === "realise") {
         heuresRealisees += h;
         sessionsRealisees++;
+        hetdRealisees += getHeTD(type, h);
+        montantBrut += getMontantBrut(type, h);
+        if (c.payment_status === "paye") {
+          sessionsPaye++;
+        } else {
+          sessionsNonPaye++;
+          montantAPayer += getMontantBrut(type, h);
+        }
       } else if (c.status === "non_realise") {
         sessionsNonRealisees++;
       } else if (c.status === "confirme") {
         heuresConfirmees += h;
         sessionsConfirmees++;
+        hetdConfirmees += getHeTD(type, h);
         if (c.date > todayStr) sessionsAVenir++;
       }
     }
+
+    const hetdTotal = hetdRealisees + hetdConfirmees;
+    const progressPlafond = Math.min((hetdTotal / PLAFOND_HETD) * 100, 100);
 
     return {
       heuresRealisees,
@@ -157,6 +184,14 @@ export default function IntervenantDetailPage() {
       sessionsAVenir,
       totalHeures: heuresRealisees + heuresConfirmees,
       matieres: matiereSet.size,
+      hetdRealisees,
+      hetdConfirmees,
+      hetdTotal,
+      montantBrut,
+      montantAPayer,
+      progressPlafond,
+      sessionsPaye,
+      sessionsNonPaye,
     };
   }, [creneaux]);
 
@@ -212,6 +247,78 @@ export default function IntervenantDetailPage() {
     setUpdatingId(null);
   }
 
+  async function togglePaymentStatus(creneauId: string, current: string) {
+    const newStatus = current === "paye" ? "non_paye" : "paye";
+    setUpdatingId(creneauId);
+    try {
+      const res = await fetch(`/api/creneaux/${creneauId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payment_status: newStatus }),
+      });
+      if (!res.ok) throw new Error();
+      setCreneaux((prev) =>
+        prev.map((c) => (c.id === creneauId ? { ...c, payment_status: newStatus } : c))
+      );
+      toast.success(newStatus === "paye" ? "Marqué comme payé" : "Marqué comme non payé");
+    } catch {
+      toast.error("Erreur lors de la mise à jour");
+    }
+    setUpdatingId(null);
+  }
+
+  async function markAllAsPaid() {
+    const unpaid = creneaux.filter(
+      (c) => c.status === "realise" && c.payment_status !== "paye"
+    );
+    if (unpaid.length === 0) {
+      toast.info("Toutes les sessions réalisées sont déjà payées");
+      return;
+    }
+    try {
+      await Promise.all(
+        unpaid.map((c) =>
+          fetch(`/api/creneaux/${c.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ payment_status: "paye" }),
+          })
+        )
+      );
+      setCreneaux((prev) =>
+        prev.map((c) =>
+          c.status === "realise" ? { ...c, payment_status: "paye" } : c
+        )
+      );
+      toast.success(`${unpaid.length} session(s) marquée(s) comme payée(s)`);
+    } catch {
+      toast.error("Erreur lors de la mise à jour");
+    }
+  }
+
+  async function handleExportPDF() {
+    const realises = creneaux.filter((c) => c.status === "realise");
+    if (realises.length === 0) {
+      toast.warning("Aucune session réalisée à exporter");
+      return;
+    }
+    if (!intervenant) return;
+    const blob = generateEtatServiceFait({
+      intervenant: {
+        first_name: intervenant.first_name,
+        last_name: intervenant.last_name,
+        email: intervenant.email,
+      },
+      creneaux: realises,
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `etat-service-fait_${intervenant.last_name}_${intervenant.first_name}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -246,26 +353,32 @@ export default function IntervenantDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/admin/intervenants")}
-        >
-          <ArrowLeft className="size-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {intervenant.first_name} {intervenant.last_name}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Fiche vacataire &middot; {intervenant.specialite || "Pas de spécialité"}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/admin/intervenants")}
+          >
+            <ArrowLeft className="size-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {intervenant.first_name} {intervenant.last_name}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Fiche vacataire &middot; {intervenant.specialite || "Pas de spécialité"}
+            </p>
+          </div>
         </div>
+        <Button variant="outline" onClick={handleExportPDF}>
+          <FileDown className="size-4 mr-2" />
+          Exporter état de service
+        </Button>
       </div>
 
       {/* Analytics cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-emerald-600 mb-1">
@@ -281,22 +394,22 @@ export default function IntervenantDetailPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-blue-600 mb-1">
-              <Clock className="size-4" />
-              <span className="text-xs font-medium">Confirmées</span>
+              <TrendingUp className="size-4" />
+              <span className="text-xs font-medium">HeTD validées</span>
             </div>
-            <p className="text-2xl font-bold">{stats.sessionsConfirmees}</p>
+            <p className="text-2xl font-bold">{stats.hetdRealisees.toFixed(1)}</p>
             <p className="text-xs text-muted-foreground">
-              {stats.heuresConfirmees.toFixed(1)}h planifiées
+              + {stats.hetdConfirmees.toFixed(1)} confirmées
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-amber-600 mb-1">
-              <TrendingUp className="size-4" />
-              <span className="text-xs font-medium">Total heures</span>
+              <Euro className="size-4" />
+              <span className="text-xs font-medium">Montant brut</span>
             </div>
-            <p className="text-2xl font-bold">{stats.totalHeures.toFixed(1)}h</p>
+            <p className="text-2xl font-bold">{stats.montantBrut.toFixed(0)} €</p>
             <p className="text-xs text-muted-foreground">
               {stats.matieres} matière{stats.matieres !== 1 ? "s" : ""}
             </p>
@@ -304,13 +417,40 @@ export default function IntervenantDetailPage() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-red-600 mb-1">
-              <XCircle className="size-4" />
-              <span className="text-xs font-medium">Non réalisées</span>
+            <div className="flex items-center gap-2 text-violet-600 mb-1">
+              <GaugeCircle className="size-4" />
+              <span className="text-xs font-medium">Plafond annuel</span>
             </div>
-            <p className="text-2xl font-bold">{stats.sessionsNonRealisees}</p>
+            <p className="text-2xl font-bold">{stats.hetdTotal.toFixed(1)}<span className="text-sm font-normal text-muted-foreground"> / {PLAFOND_HETD}</span></p>
+            <div className="mt-1 h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${stats.progressPlafond > 90 ? "bg-red-500" : stats.progressPlafond > 70 ? "bg-amber-500" : "bg-violet-500"}`}
+                style={{ width: `${stats.progressPlafond}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-orange-600 mb-1">
+              <Banknote className="size-4" />
+              <span className="text-xs font-medium">À payer</span>
+            </div>
+            <p className="text-2xl font-bold">{stats.montantAPayer.toFixed(0)} €</p>
             <p className="text-xs text-muted-foreground">
-              {stats.sessionsAVenir} à venir
+              {stats.sessionsNonPaye} session{stats.sessionsNonPaye !== 1 ? "s" : ""}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-emerald-600 mb-1">
+              <Banknote className="size-4" />
+              <span className="text-xs font-medium">Payées</span>
+            </div>
+            <p className="text-2xl font-bold">{stats.sessionsPaye}</p>
+            <p className="text-xs text-muted-foreground">
+              {(stats.montantBrut - stats.montantAPayer).toFixed(0)} € versés
             </p>
           </CardContent>
         </Card>
@@ -401,8 +541,19 @@ export default function IntervenantDetailPage() {
 
         {/* Sessions list */}
         <Card className="lg:col-span-2">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Sessions</CardTitle>
+            {stats.sessionsNonPaye > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={markAllAsPaid}
+              >
+                <Banknote className="size-3 mr-1" />
+                Marquer tout comme payé
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="space-y-6">
             {creneaux.length === 0 ? (
@@ -426,6 +577,7 @@ export default function IntervenantDetailPage() {
                           creneau={c}
                           updating={updatingId === c.id}
                           onStatusChange={updateCreneauStatus}
+                          onPaymentToggle={togglePaymentStatus}
                           isPast
                         />
                       ))}
@@ -447,6 +599,7 @@ export default function IntervenantDetailPage() {
                           creneau={c}
                           updating={updatingId === c.id}
                           onStatusChange={updateCreneauStatus}
+                          onPaymentToggle={togglePaymentStatus}
                           isPast={false}
                         />
                       ))}
@@ -462,18 +615,28 @@ export default function IntervenantDetailPage() {
   );
 }
 
+const SESSION_TYPE_COLORS: Record<string, string> = {
+  CM: "bg-violet-100 text-violet-700 border-violet-300",
+  TD: "bg-blue-100 text-blue-700 border-blue-300",
+  TP: "bg-teal-100 text-teal-700 border-teal-300",
+};
+
 function CreneauRow({
   creneau,
   updating,
   onStatusChange,
+  onPaymentToggle,
   isPast,
 }: {
   creneau: Creneau;
   updating: boolean;
   onStatusChange: (id: string, status: "realise" | "non_realise" | "confirme") => void;
+  onPaymentToggle: (id: string, current: string) => void;
   isPast: boolean;
 }) {
   const hours = parseHours(creneau.heure_debut, creneau.heure_fin);
+  const type = creneau.session_type || "TD";
+  const hetd = getHeTD(type, hours);
   const dateLabel = format(
     new Date(creneau.date + "T00:00:00"),
     "EEE d MMM",
@@ -491,13 +654,24 @@ function CreneauRow({
     <div className={`flex items-center gap-3 rounded-lg border p-3 ${sc.bg}`}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
+          <Badge variant="outline" className={`text-[10px] font-semibold ${SESSION_TYPE_COLORS[type] || SESSION_TYPE_COLORS.TD}`}>
+            {type}
+          </Badge>
           <span className="text-sm font-medium">{dateLabel}</span>
           <Badge variant="outline" className="text-[10px]">
             {creneau.heure_debut.slice(0, 5)}-{creneau.heure_fin.slice(0, 5)}
           </Badge>
           <Badge variant="secondary" className="text-[10px]">
-            {hours.toFixed(1)}h
+            {hours.toFixed(1)}h | {hetd.toFixed(1)} HeTD
           </Badge>
+          {creneau.status === "realise" && (
+            <Badge
+              variant="outline"
+              className={`text-[10px] ${creneau.payment_status === "paye" ? "bg-emerald-100 text-emerald-700 border-emerald-300" : "bg-orange-100 text-orange-700 border-orange-300"}`}
+            >
+              {creneau.payment_status === "paye" ? "Payé" : "Non payé"}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
           {creneau.matieres && (
@@ -541,6 +715,17 @@ function CreneauRow({
           </>
         ) : (
           <span className={`text-xs font-medium ${sc.color}`}>{sc.label}</span>
+        )}
+        {creneau.status === "realise" && !updating && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className={`h-7 text-xs ${creneau.payment_status === "paye" ? "text-emerald-600" : "text-orange-600"}`}
+            onClick={() => onPaymentToggle(creneau.id, creneau.payment_status)}
+            title={creneau.payment_status === "paye" ? "Marqué payé — cliquer pour annuler" : "Marquer comme payé"}
+          >
+            <Euro className="size-3" />
+          </Button>
         )}
         {creneau.status !== "confirme" && isPast && (
           <Button

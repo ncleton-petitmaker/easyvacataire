@@ -10,6 +10,7 @@ const createSchema = z.object({
   heure_fin: z.string().regex(/^\d{2}:\d{2}$/),
   salle: z.string().optional(),
   notes: z.string().optional(),
+  session_type: z.enum(["CM", "TD", "TP"]).default("TD"),
 });
 
 export async function GET(req: NextRequest) {

@@ -50,6 +50,7 @@ type Creneau = {
   heure_fin: string;
   salle: string | null;
   status: string;
+  session_type: string;
   intervenants: {
     id: string;
     first_name: string;
@@ -66,6 +67,7 @@ type Besoin = {
   salle: string | null;
   notes: string | null;
   status: string;
+  session_type: string;
   matieres: { id: string; name: string; code: string | null } | null;
 };
 
@@ -107,6 +109,7 @@ export default function CreneauxPage() {
     matiere_id: "",
     salle: "",
     notes: "",
+    session_type: "TD" as "CM" | "TD" | "TP",
   });
 
   // Match panel
@@ -173,7 +176,7 @@ export default function CreneauxPage() {
     for (const c of creneaux) {
       events.push({
         id: `creneau-${c.id}`,
-        title: `${c.matieres?.name || "Cours"}${c.intervenants ? ` · ${c.intervenants.first_name} ${c.intervenants.last_name[0]}.` : ""}`,
+        title: `[${c.session_type || "TD"}] ${c.matieres?.name || "Cours"}${c.intervenants ? ` · ${c.intervenants.first_name} ${c.intervenants.last_name[0]}.` : ""}`,
         start: new Date(`${c.date}T${c.heure_debut}`),
         end: new Date(`${c.date}T${c.heure_fin}`),
         color: "emerald",
@@ -186,7 +189,7 @@ export default function CreneauxPage() {
       const hasMatch = (match?.intervenants.length ?? 0) > 0;
       events.push({
         id: `besoin-${b.id}`,
-        title: `${b.matieres?.name || "Besoin"}${hasMatch ? ` (${match!.intervenants.length} dispo)` : ""}`,
+        title: `[${b.session_type || "TD"}] ${b.matieres?.name || "Besoin"}${hasMatch ? ` (${match!.intervenants.length} dispo)` : ""}`,
         start: new Date(`${b.date}T${b.heure_debut}`),
         end: new Date(`${b.date}T${b.heure_fin}`),
         color: hasMatch ? "indigo" : "amber",
@@ -252,6 +255,7 @@ export default function CreneauxPage() {
           heure_fin: createForm.heure_fin,
           salle: createForm.salle || undefined,
           notes: createForm.notes || undefined,
+          session_type: createForm.session_type,
         }),
       });
       if (!res.ok) throw new Error();
@@ -295,6 +299,7 @@ export default function CreneauxPage() {
               matiere_id: "",
               salle: "",
               notes: "",
+              session_type: "TD",
             });
             setShowCreateDialog(true);
           }}
@@ -355,6 +360,7 @@ export default function CreneauxPage() {
                   matiere_id: "",
                   salle: "",
                   notes: "",
+                  session_type: "TD",
                 });
                 setShowCreateDialog(true);
               }}
@@ -542,7 +548,25 @@ export default function CreneauxPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select
+                  value={createForm.session_type}
+                  onValueChange={(val) =>
+                    setCreateForm({ ...createForm, session_type: val as "CM" | "TD" | "TP" })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CM">CM</SelectItem>
+                    <SelectItem value="TD">TD</SelectItem>
+                    <SelectItem value="TP">TP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label>Matière</Label>
                 <Select
