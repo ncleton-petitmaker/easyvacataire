@@ -3,11 +3,11 @@ import { getServiceClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
 const createSchema = z.object({
-  intervenant_id: z.string().uuid(),
+  intervenant_id: z.string().min(1),
   day_of_week: z.number().int().min(-1).max(6).nullable(), // null=tous les jours, -1=lun-ven, 0-6=jour
   heure_debut: z.string().regex(/^\d{2}:\d{2}$/),
   heure_fin: z.string().regex(/^\d{2}:\d{2}$/),
-  label: z.string().optional(),
+  label: z.string().nullable().optional(),
 });
 
 export async function GET(req: NextRequest) {
