@@ -9,8 +9,7 @@ import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "@/components/ui/s
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/vacataire/disponibilites", label: "Mes disponibilités", icon: CalendarPlus },
-  { href: "/mes/creneaux", label: "Mon planning", icon: Calendar },
+  { href: "/mes/creneaux", label: "Planning & dispos", icon: Calendar },
   { href: "/vacataire/suivi", label: "Suivi heures", icon: TrendingUp },
 ];
 
