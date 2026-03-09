@@ -22,16 +22,16 @@ export function Footer() {
             GitHub
           </a>
           <a
+            href="/conditions-utilisation"
+            className="text-sm text-zinc-500 transition hover:text-zinc-700"
+          >
+            CGU
+          </a>
+          <a
             href="/politique-de-confidentialite"
             className="text-sm text-zinc-500 transition hover:text-zinc-700"
           >
-            Politique de confidentialité
-          </a>
-          <a
-            href="/login"
-            className="text-sm text-zinc-500 transition hover:text-zinc-700"
-          >
-            Connexion
+            Confidentialité
           </a>
         </nav>
 
