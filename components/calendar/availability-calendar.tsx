@@ -174,9 +174,9 @@ export function AvailabilityCalendar({
                       : isPast
                         ? "cursor-not-allowed text-zinc-300"
                         : isSelected
-                          ? "bg-indigo-600 font-semibold text-white shadow-md"
+                          ? "bg-[#4243C4] font-semibold text-white shadow-md"
                           : isToday
-                            ? "bg-indigo-50 font-semibold text-indigo-700"
+                            ? "bg-[#4243C4]/10 font-semibold text-[#4243C4]"
                             : hasSlots
                               ? "bg-emerald-50 font-medium text-emerald-700 hover:bg-emerald-100"
                               : "text-zinc-700 hover:bg-zinc-100"
@@ -188,7 +188,7 @@ export function AvailabilityCalendar({
                       <span className="h-1 w-1 rounded-full bg-emerald-500" />
                     )}
                     {hasRules && !isSelected && (
-                      <span className="h-1 w-1 rounded-full bg-orange-500" />
+                      <span className="h-1 w-1 rounded-full bg-amber-500" />
                     )}
                     {hasBusy && !isSelected && (
                       <span className="h-1 w-1 rounded-full bg-red-500" />
@@ -215,12 +215,12 @@ export function AvailabilityCalendar({
                 (rule, i) => (
                   <div
                     key={`rule-${i}`}
-                    className="mb-2 flex items-center justify-between rounded-xl bg-orange-50 p-3"
+                    className="mb-2 flex items-center justify-between rounded-xl bg-amber-50 p-3"
                   >
-                    <span className="text-sm font-medium text-orange-800">
+                    <span className="text-sm font-medium text-amber-800">
                       {rule.heure_debut} — {rule.heure_fin}
                     </span>
-                    <span className="text-[10px] text-orange-500">Indisponible</span>
+                    <span className="text-[10px] text-amber-500">Indisponible</span>
                   </div>
                 )
               )}
@@ -307,7 +307,7 @@ export function AvailabilityCalendar({
                   </div>
                   <button
                     onClick={handleAddSlot}
-                    className="w-full rounded-lg bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                    className="w-full rounded-lg bg-[#4243C4] py-2 text-sm font-medium text-white hover:bg-[#3234A0]"
                   >
                     Ajouter ce créneau
                   </button>

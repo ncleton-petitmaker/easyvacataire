@@ -84,12 +84,6 @@ export async function POST(req: NextRequest) {
     const jsDay = current.getDay(); // 0=dimanche
     const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1; // 0=lundi
 
-    // Skip weekends (samedi=5, dimanche=6) par défaut
-    if (dayOfWeek >= 5) {
-      current.setDate(current.getDate() + 1);
-      continue;
-    }
-
     // Skip si passé
     const today = new Date();
     today.setHours(0, 0, 0, 0);

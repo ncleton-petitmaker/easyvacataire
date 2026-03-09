@@ -418,7 +418,7 @@ export default function MesCreneauxPage() {
       <div className="rounded-xl border border-zinc-200 bg-white p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-zinc-800 flex items-center gap-2">
-            <Ban className="size-4 text-orange-500" />
+            <Ban className="size-4 text-amber-500" />
             Indisponibilités récurrentes
           </h2>
           <Button
@@ -432,7 +432,7 @@ export default function MesCreneauxPage() {
         </div>
 
         {showRuleForm && (
-          <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3 space-y-3">
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-3">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div>
                 <label className="mb-1 block text-xs text-zinc-500">Jour</label>
@@ -441,7 +441,7 @@ export default function MesCreneauxPage() {
                   onChange={(e) => setRuleDay(Number(e.target.value))}
                   className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
                 >
-                  {JOURS.slice(0, 5).map((j, i) => (
+                  {JOURS.map((j, i) => (
                     <option key={i} value={i}>{j}</option>
                   ))}
                 </select>
@@ -483,7 +483,7 @@ export default function MesCreneauxPage() {
             </div>
             <button
               onClick={handleAddRule}
-              className="rounded-lg bg-orange-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-orange-600"
+              className="rounded-lg bg-amber-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-amber-600"
             >
               Ajouter cette règle
             </button>
@@ -495,13 +495,13 @@ export default function MesCreneauxPage() {
             {recurringRules.map((rule) => (
               <div
                 key={rule.id}
-                className="flex items-center justify-between rounded-lg bg-orange-50 px-3 py-2"
+                className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2"
               >
-                <span className="text-sm text-orange-800">
+                <span className="text-sm text-amber-800">
                   <span className="font-medium">{JOURS[rule.day_of_week]}</span>{" "}
                   {rule.heure_debut.slice(0, 5)} — {rule.heure_fin.slice(0, 5)}
                   {rule.label && (
-                    <span className="text-orange-500 ml-2">({rule.label})</span>
+                    <span className="text-amber-500 ml-2">({rule.label})</span>
                   )}
                 </span>
                 <button
@@ -527,7 +527,7 @@ export default function MesCreneauxPage() {
           Disponible
         </span>
         <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-orange-500" />
+          <span className="h-2 w-2 rounded-full bg-amber-500" />
           Indisponible (règle)
         </span>
         {googleConnected && (
