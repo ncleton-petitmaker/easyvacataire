@@ -373,7 +373,7 @@ export default function IntervenantDetailPage() {
               <Label className="text-xs">Rôle</Label>
               <Select
                 value={form.role}
-                onValueChange={(val) => setForm({ ...form, role: val })}
+                onValueChange={(val) => setForm({ ...form, role: val ?? "intervenant" })}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
