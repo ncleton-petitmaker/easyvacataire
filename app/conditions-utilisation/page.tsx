@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Conditions d'utilisation — EasyVacataire",
@@ -8,11 +9,18 @@ export const metadata: Metadata = {
 export default function ConditionsPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
+      <Link
+        href="/"
+        className="mb-10 inline-flex items-center gap-2 text-sm text-zinc-500 transition hover:text-zinc-700"
+      >
+        &larr; Retour à l&apos;accueil
+      </Link>
+
       <h1 className="mb-8 text-3xl font-bold text-zinc-900 dark:text-zinc-100">
         Conditions générales d&apos;utilisation
       </h1>
       <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
-        Dernière mise à jour : 7 mars 2026
+        Dernière mise à jour : 9 mars 2026
       </p>
 
       <div className="space-y-6 text-zinc-700 dark:text-zinc-300 leading-relaxed">
@@ -48,8 +56,9 @@ export default function ConditionsPage() {
           <p>
             EasyVacataire permet aux établissements d&apos;enseignement supérieur
             de gérer leurs intervenants vacataires : publication de créneaux,
-            gestion des disponibilités, communication via WhatsApp, et suivi
-            administratif.
+            gestion des disponibilités, communication via WhatsApp, suivi
+            administratif, suivi des heures équivalent TD (HeTD) et des
+            paiements.
           </p>
         </section>
 
@@ -59,7 +68,7 @@ export default function ConditionsPage() {
           </h2>
           <p>
             L&apos;accès à la plateforme nécessite une authentification par code
-            OTP envoyé via WhatsApp. Seuls les utilisateurs préalablement
+            OTP envoyé par email. Seuls les utilisateurs préalablement
             enregistrés par un administrateur d&apos;établissement ou un
             super-administrateur peuvent se connecter. Chaque utilisateur est
             responsable de la confidentialité de son accès.
@@ -81,7 +90,23 @@ export default function ConditionsPage() {
 
         <section>
           <h2 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-            6. Données personnelles
+            6. Intégration Google Calendar
+          </h2>
+          <p>
+            La plateforme permet aux intervenants de connecter leur compte Google
+            pour synchroniser leurs créneaux d&apos;indisponibilité via Google
+            Calendar. Cette fonctionnalité utilise l&apos;API Google Calendar en
+            mode lecture seule (scope <code>calendar.freebusy</code>). Les
+            données récupérées (créneaux occupés) sont utilisées uniquement pour
+            afficher les indisponibilités sur le planning et ne sont pas
+            stockées de manière permanente. L&apos;utilisateur peut déconnecter
+            son compte Google à tout moment depuis son espace personnel.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+            7. Données personnelles
           </h2>
           <p>
             Le traitement des données personnelles est décrit dans notre{" "}
@@ -98,7 +123,7 @@ export default function ConditionsPage() {
 
         <section>
           <h2 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-            7. Propriété intellectuelle
+            8. Propriété intellectuelle
           </h2>
           <p>
             L&apos;ensemble des contenus de la plateforme (textes, images, logos,
@@ -110,7 +135,7 @@ export default function ConditionsPage() {
 
         <section>
           <h2 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-            8. Responsabilité
+            9. Responsabilité
           </h2>
           <p>
             EasyVacataire met tout en œuvre pour assurer la disponibilité et le
@@ -123,7 +148,7 @@ export default function ConditionsPage() {
 
         <section>
           <h2 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-            9. Modification des CGU
+            10. Modification des CGU
           </h2>
           <p>
             EasyVacataire se réserve le droit de modifier les présentes CGU à
@@ -135,7 +160,7 @@ export default function ConditionsPage() {
 
         <section>
           <h2 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-            10. Droit applicable
+            11. Droit applicable
           </h2>
           <p>
             Les présentes CGU sont régies par le droit français. Tout litige
@@ -146,11 +171,18 @@ export default function ConditionsPage() {
 
         <section>
           <h2 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-            11. Contact
+            12. Contact
           </h2>
           <p>
             Pour toute question relative aux présentes CGU, vous pouvez nous
-            contacter via la plateforme EasyVacataire.
+            contacter à l&apos;adresse{" "}
+            <a
+              href="mailto:contact@easyvacataire.fr"
+              className="text-blue-600 underline"
+            >
+              contact@easyvacataire.fr
+            </a>
+            .
           </p>
         </section>
       </div>

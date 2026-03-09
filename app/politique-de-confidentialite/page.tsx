@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Politique de confidentialite - EasyVacataire",
+  title: "Politique de confidentialité — EasyVacataire",
   description:
-    "Politique de confidentialite et de protection des donnees personnelles d'EasyVacataire, conforme au RGPD.",
+    "Politique de confidentialité et de protection des données personnelles d'EasyVacataire, conforme au RGPD.",
 };
 
 export default function PolitiqueDeConfidentialite() {
@@ -14,14 +14,14 @@ export default function PolitiqueDeConfidentialite() {
         href="/"
         className="mb-10 inline-flex items-center gap-2 text-sm text-zinc-500 transition hover:text-zinc-700"
       >
-        &larr; Retour a l&apos;accueil
+        &larr; Retour à l&apos;accueil
       </Link>
 
       <h1 className="mb-4 text-3xl font-bold text-zinc-900">
-        Politique de confidentialite
+        Politique de confidentialité
       </h1>
       <p className="mb-10 text-sm text-zinc-500">
-        Derniere mise a jour : 6 mars 2026
+        Dernière mise à jour : 9 mars 2026
       </p>
 
       {/* 1 */}
@@ -30,7 +30,7 @@ export default function PolitiqueDeConfidentialite() {
           1. Responsable du traitement
         </h2>
         <p className="leading-relaxed text-zinc-600">
-          Le responsable du traitement des donnees personnelles collectees via le
+          Le responsable du traitement des données personnelles collectées via le
           site{" "}
           <a
             href="https://easyvacataire.fr"
@@ -59,30 +59,36 @@ export default function PolitiqueDeConfidentialite() {
       {/* 2 */}
       <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-zinc-800">
-          2. Donnees personnelles collectees
+          2. Données personnelles collectées
         </h2>
         <p className="mb-3 leading-relaxed text-zinc-600">
           Dans le cadre de l&apos;utilisation de la plateforme EasyVacataire,
-          nous sommes amenes a collecter les donnees personnelles suivantes :
+          nous sommes amenés à collecter les données personnelles suivantes :
         </p>
         <ul className="list-inside list-disc space-y-1 text-zinc-600">
           <li>
-            <strong>Nom et prenom</strong> de l&apos;intervenant
+            <strong>Nom et prénom</strong> de l&apos;intervenant
           </li>
           <li>
-            <strong>Numero de telephone WhatsApp</strong> — utilise pour
+            <strong>Adresse email</strong> — utilisée pour l&apos;authentification
+            par code OTP et les notifications
+          </li>
+          <li>
+            <strong>Numéro de téléphone WhatsApp</strong> — utilisé pour
             l&apos;envoi de notifications et la communication via
             l&apos;assistant conversationnel
           </li>
           <li>
-            <strong>Disponibilites</strong> — creneaux horaires renseignes par
+            <strong>Disponibilités</strong> — créneaux horaires renseignés par
             l&apos;intervenant
           </li>
           <li>
-            <strong>Matieres enseignees</strong> et preferences
+            <strong>Matières enseignées</strong> et préférences
           </li>
           <li>
-            <strong>Adresse email</strong> (le cas echeant)
+            <strong>Données Google Calendar</strong> (le cas échéant) — créneaux
+            d&apos;indisponibilité récupérés via l&apos;API Google Calendar,
+            utilisés uniquement pour l&apos;affichage sur le planning
           </li>
         </ul>
       </section>
@@ -90,27 +96,30 @@ export default function PolitiqueDeConfidentialite() {
       {/* 3 */}
       <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-zinc-800">
-          3. Finalites du traitement
+          3. Finalités du traitement
         </h2>
         <p className="mb-3 leading-relaxed text-zinc-600">
-          Les donnees collectees sont utilisees pour les finalites suivantes :
+          Les données collectées sont utilisées pour les finalités suivantes :
         </p>
         <ul className="list-inside list-disc space-y-1 text-zinc-600">
           <li>
-            Gestion et synchronisation des disponibilites des intervenants avec
-            les besoins de l&apos;etablissement
+            Gestion et synchronisation des disponibilités des intervenants avec
+            les besoins de l&apos;établissement
           </li>
           <li>
-            Envoi de notifications via WhatsApp (rappels, mises a jour de
+            Envoi de notifications via email et WhatsApp (rappels, mises à jour de
             planning)
           </li>
           <li>
-            Fonctionnement de l&apos;assistant conversationnel base sur
+            Fonctionnement de l&apos;assistant conversationnel basé sur
             l&apos;intelligence artificielle
           </li>
-          <li>Matching automatique entre besoins et disponibilites</li>
+          <li>Matching automatique entre besoins et disponibilités</li>
           <li>
-            Gestion administrative de la relation entre l&apos;etablissement et
+            Suivi des heures équivalent TD (HeTD) et gestion des paiements
+          </li>
+          <li>
+            Gestion administrative de la relation entre l&apos;établissement et
             les intervenants
           </li>
         </ul>
@@ -119,24 +128,24 @@ export default function PolitiqueDeConfidentialite() {
       {/* 4 */}
       <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-zinc-800">
-          4. Base legale du traitement
+          4. Base légale du traitement
         </h2>
         <p className="leading-relaxed text-zinc-600">
-          Le traitement des donnees personnelles repose sur :
+          Le traitement des données personnelles repose sur :
         </p>
         <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-600">
           <li>
-            <strong>L&apos;interet legitime</strong> de l&apos;etablissement a
+            <strong>L&apos;intérêt légitime</strong> de l&apos;établissement à
             organiser la planification de ses intervenants
           </li>
           <li>
             <strong>Le consentement</strong> de l&apos;intervenant lors de la
-            communication de ses informations et disponibilites
+            communication de ses informations et disponibilités
           </li>
           <li>
-            <strong>L&apos;execution d&apos;un contrat</strong> ou de mesures
-            precontractuelles dans le cadre de la relation entre
-            l&apos;etablissement et l&apos;intervenant
+            <strong>L&apos;exécution d&apos;un contrat</strong> ou de mesures
+            précontractuelles dans le cadre de la relation entre
+            l&apos;établissement et l&apos;intervenant
           </li>
         </ul>
       </section>
@@ -152,27 +161,41 @@ export default function PolitiqueDeConfidentialite() {
         </p>
         <ul className="list-inside list-disc space-y-2 text-zinc-600">
           <li>
-            <strong>Supabase</strong> — base de donnees et authentification. Les
-            donnees sont hebergees en Europe.
+            <strong>Supabase</strong> — base de données et authentification. Les
+            données sont hébergées en Europe.
           </li>
           <li>
-            <strong>Hetzner</strong> (Allemagne) — hebergement de
-            l&apos;infrastructure serveur. Les donnees sont hebergees en Europe
-            (Allemagne), conformement au RGPD.
+            <strong>Hetzner</strong> (Allemagne) — hébergement de
+            l&apos;infrastructure serveur. Les données sont hébergées en Europe
+            (Allemagne), conformément au RGPD.
           </li>
           <li>
-            <strong>WhatsApp / Evolution API</strong> — utilise pour l&apos;envoi
+            <strong>Resend</strong> — service d&apos;envoi d&apos;emails
+            transactionnels (codes OTP, notifications).
+          </li>
+          <li>
+            <strong>WhatsApp / Evolution API</strong> — utilisé pour l&apos;envoi
             de notifications et la communication avec les intervenants via
             WhatsApp.
           </li>
           <li>
-            <strong>Mistral AI</strong> — moteur de l&apos;assistant
-            conversationnel. Les messages envoyes a Mistral AI sont traites en
-            temps reel pour generer des reponses.{" "}
+            <strong>Google Calendar API</strong> — utilisé pour récupérer les
+            créneaux d&apos;indisponibilité des intervenants ayant connecté leur
+            compte Google. Seul le scope <code>calendar.freebusy</code> (lecture
+            seule des disponibilités) est utilisé.{" "}
             <strong>
-              Aucune donnee personnelle n&apos;est conservee par Mistral AI
+              Aucun événement n&apos;est lu, créé ou modifié dans le calendrier
+              de l&apos;utilisateur.
+            </strong>
+          </li>
+          <li>
+            <strong>Mistral AI</strong> — moteur de l&apos;assistant
+            conversationnel. Les messages envoyés à Mistral AI sont traités en
+            temps réel pour générer des réponses.{" "}
+            <strong>
+              Aucune donnée personnelle n&apos;est conservée par Mistral AI
             </strong>{" "}
-            apres le traitement de la requete.
+            après le traitement de la requête.
           </li>
         </ul>
       </section>
@@ -180,39 +203,44 @@ export default function PolitiqueDeConfidentialite() {
       {/* 6 */}
       <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-zinc-800">
-          6. Hebergement des donnees
+          6. Hébergement des données
         </h2>
         <p className="leading-relaxed text-zinc-600">
-          L&apos;ensemble des donnees personnelles collectees par EasyVacataire
-          est heberge en <strong>Europe</strong>, principalement chez{" "}
-          <strong>Hetzner</strong> en Allemagne. Ce choix garantit la conformite
-          avec le Reglement General sur la Protection des Donnees (RGPD) et
-          assure un niveau de protection eleve des donnees.
+          L&apos;ensemble des données personnelles collectées par EasyVacataire
+          est hébergé en <strong>Europe</strong>, principalement chez{" "}
+          <strong>Hetzner</strong> en Allemagne. Ce choix garantit la conformité
+          avec le Règlement Général sur la Protection des Données (RGPD) et
+          assure un niveau de protection élevé des données.
         </p>
       </section>
 
       {/* 7 */}
       <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-zinc-800">
-          7. Duree de conservation des donnees
+          7. Durée de conservation des données
         </h2>
         <p className="mb-3 leading-relaxed text-zinc-600">
-          Les donnees personnelles sont conservees pour la duree strictement
-          necessaire aux finalites decrites ci-dessus :
+          Les données personnelles sont conservées pour la durée strictement
+          nécessaire aux finalités décrites ci-dessus :
         </p>
         <ul className="list-inside list-disc space-y-1 text-zinc-600">
           <li>
-            <strong>Donnees des intervenants</strong> (nom, telephone,
-            disponibilites) : conservees pendant la duree de la collaboration
-            avec l&apos;etablissement, puis supprimees dans un delai de 12 mois
-            apres la fin de la relation.
+            <strong>Données des intervenants</strong> (nom, téléphone,
+            disponibilités) : conservées pendant la durée de la collaboration
+            avec l&apos;établissement, puis supprimées dans un délai de 12 mois
+            après la fin de la relation.
           </li>
           <li>
-            <strong>Historique des conversations WhatsApp</strong> : conserve
-            pendant 6 mois maximum a des fins d&apos;amelioration du service.
+            <strong>Tokens Google OAuth</strong> : conservés tant que
+            l&apos;utilisateur maintient la connexion Google Calendar active.
+            Supprimés immédiatement lors de la déconnexion.
           </li>
           <li>
-            <strong>Logs techniques</strong> : conserves pendant 12 mois
+            <strong>Historique des conversations WhatsApp</strong> : conservé
+            pendant 6 mois maximum à des fins d&apos;amélioration du service.
+          </li>
+          <li>
+            <strong>Logs techniques</strong> : conservés pendant 12 mois
             maximum.
           </li>
         </ul>
@@ -224,13 +252,13 @@ export default function PolitiqueDeConfidentialite() {
           8. Cookies
         </h2>
         <p className="mb-3 leading-relaxed text-zinc-600">
-          Le site EasyVacataire peut utiliser des cookies strictement necessaires
+          Le site EasyVacataire peut utiliser des cookies strictement nécessaires
           au fonctionnement du service, notamment :
         </p>
         <ul className="list-inside list-disc space-y-1 text-zinc-600">
           <li>
             <strong>Cookies de session</strong> — pour maintenir
-            l&apos;authentification des utilisateurs connectes
+            l&apos;authentification des utilisateurs connectés
           </li>
           <li>
             <strong>Cookies techniques</strong> — pour assurer le bon
@@ -238,7 +266,7 @@ export default function PolitiqueDeConfidentialite() {
           </li>
         </ul>
         <p className="mt-3 leading-relaxed text-zinc-600">
-          Aucun cookie publicitaire ou de suivi marketing n&apos;est utilise sur
+          Aucun cookie publicitaire ou de suivi marketing n&apos;est utilisé sur
           la plateforme.
         </p>
       </section>
@@ -249,37 +277,37 @@ export default function PolitiqueDeConfidentialite() {
           9. Droits des utilisateurs
         </h2>
         <p className="mb-3 leading-relaxed text-zinc-600">
-          Conformement au RGPD, vous disposez des droits suivants concernant vos
-          donnees personnelles :
+          Conformément au RGPD, vous disposez des droits suivants concernant vos
+          données personnelles :
         </p>
         <ul className="list-inside list-disc space-y-1 text-zinc-600">
           <li>
-            <strong>Droit d&apos;acces</strong> — obtenir la confirmation que
-            des donnees vous concernant sont traitees et en recevoir une copie
+            <strong>Droit d&apos;accès</strong> — obtenir la confirmation que
+            des données vous concernant sont traitées et en recevoir une copie
           </li>
           <li>
             <strong>Droit de rectification</strong> — demander la correction de
-            donnees inexactes ou incompletes
+            données inexactes ou incomplètes
           </li>
           <li>
-            <strong>Droit a l&apos;effacement</strong> — demander la suppression
-            de vos donnees personnelles
+            <strong>Droit à l&apos;effacement</strong> — demander la suppression
+            de vos données personnelles
           </li>
           <li>
-            <strong>Droit a la portabilite</strong> — recevoir vos donnees dans
-            un format structure et lisible par machine
+            <strong>Droit à la portabilité</strong> — recevoir vos données dans
+            un format structuré et lisible par machine
           </li>
           <li>
             <strong>Droit d&apos;opposition</strong> — vous opposer au
-            traitement de vos donnees pour des motifs legitimes
+            traitement de vos données pour des motifs légitimes
           </li>
           <li>
-            <strong>Droit a la limitation du traitement</strong> — demander la
-            suspension du traitement de vos donnees dans certains cas
+            <strong>Droit à la limitation du traitement</strong> — demander la
+            suspension du traitement de vos données dans certains cas
           </li>
         </ul>
         <p className="mt-3 leading-relaxed text-zinc-600">
-          Pour exercer l&apos;un de ces droits, vous pouvez nous contacter a
+          Pour exercer l&apos;un de ces droits, vous pouvez nous contacter à
           l&apos;adresse suivante :{" "}
           <a
             href="mailto:contact@easyvacataire.fr"
@@ -287,7 +315,7 @@ export default function PolitiqueDeConfidentialite() {
           >
             contact@easyvacataire.fr
           </a>
-          . Nous nous engageons a repondre a votre demande dans un delai de 30
+          . Nous nous engageons à répondre à votre demande dans un délai de 30
           jours.
         </p>
       </section>
@@ -295,27 +323,27 @@ export default function PolitiqueDeConfidentialite() {
       {/* 10 */}
       <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-zinc-800">
-          10. Securite des donnees
+          10. Sécurité des données
         </h2>
         <p className="leading-relaxed text-zinc-600">
-          EasyVacataire met en oeuvre des mesures techniques et
-          organisationnelles appropriees pour proteger vos donnees personnelles
-          contre tout acces non autorise, toute modification, divulgation ou
-          destruction. Les communications sont chiffrees via HTTPS et
-          l&apos;acces aux donnees est strictement limite aux personnes
-          autorisees.
+          EasyVacataire met en œuvre des mesures techniques et
+          organisationnelles appropriées pour protéger vos données personnelles
+          contre tout accès non autorisé, toute modification, divulgation ou
+          destruction. Les communications sont chiffrées via HTTPS et
+          l&apos;accès aux données est strictement limité aux personnes
+          autorisées.
         </p>
       </section>
 
       {/* 11 */}
       <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-zinc-800">
-          11. Contact - Delegue a la protection des donnees
+          11. Contact — Délégué à la protection des données
         </h2>
         <p className="leading-relaxed text-zinc-600">
-          Pour toute question relative a la protection de vos donnees
+          Pour toute question relative à la protection de vos données
           personnelles ou pour exercer vos droits, vous pouvez contacter notre
-          responsable de la protection des donnees :
+          responsable de la protection des données :
         </p>
         <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-600">
           <li>
@@ -333,14 +361,14 @@ export default function PolitiqueDeConfidentialite() {
       {/* 12 */}
       <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-zinc-800">
-          12. Reclamation aupres d&apos;une autorite de controle
+          12. Réclamation auprès d&apos;une autorité de contrôle
         </h2>
         <p className="leading-relaxed text-zinc-600">
-          Si vous estimez que le traitement de vos donnees personnelles
+          Si vous estimez que le traitement de vos données personnelles
           constitue une violation du RGPD, vous avez le droit d&apos;introduire
-          une reclamation aupres de la{" "}
+          une réclamation auprès de la{" "}
           <strong>
-            Commission Nationale de l&apos;Informatique et des Libertes (CNIL)
+            Commission Nationale de l&apos;Informatique et des Libertés (CNIL)
           </strong>{" "}
           :
         </p>
@@ -362,13 +390,13 @@ export default function PolitiqueDeConfidentialite() {
       {/* 13 */}
       <section className="mb-10">
         <h2 className="mb-3 text-xl font-semibold text-zinc-800">
-          13. Modifications de la politique de confidentialite
+          13. Modifications de la politique de confidentialité
         </h2>
         <p className="leading-relaxed text-zinc-600">
-          EasyVacataire se reserve le droit de modifier la presente politique de
-          confidentialite a tout moment. En cas de modification substantielle,
-          les utilisateurs en seront informes par les moyens de communication
-          disponibles. La date de derniere mise a jour est indiquee en haut de
+          EasyVacataire se réserve le droit de modifier la présente politique de
+          confidentialité à tout moment. En cas de modification substantielle,
+          les utilisateurs en seront informés par les moyens de communication
+          disponibles. La date de dernière mise à jour est indiquée en haut de
           cette page.
         </p>
       </section>
