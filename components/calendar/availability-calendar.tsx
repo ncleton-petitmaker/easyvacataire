@@ -31,8 +31,11 @@ const TIME_OPTIONS = [
   "17:00", "17:30", "18:00", "18:30", "19:00",
 ];
 
+export type BusySlot = { start: string; end: string };
+
 type Props = {
   slots: Slot[];
+  busySlots?: BusySlot[];
   onAddSlot: (slot: Omit<Slot, "id">) => void;
   onRemoveSlot: (slotId: string) => void;
   readOnly?: boolean;
@@ -40,6 +43,7 @@ type Props = {
 
 export function AvailabilityCalendar({
   slots,
+  busySlots = [],
   onAddSlot,
   onRemoveSlot,
   readOnly = false,
@@ -64,6 +68,16 @@ export function AvailabilityCalendar({
     }
     return map;
   }, [slots]);
+
+  const busyByDate = useMemo(() => {
+    const map = new Map<string, BusySlot[]>();
+    for (const b of busySlots) {
+      const d = b.start.slice(0, 10);
+      if (!map.has(d)) map.set(d, []);
+      map.get(d)!.push(b);
+    }
+    return map;
+  }, [busySlots]);
 
   function handleAddSlot() {
     if (!selectedDate || readOnly) return;
@@ -115,11 +129,13 @@ export function AvailabilityCalendar({
             {days.map((day) => {
               const dateStr = format(day, "yyyy-MM-dd");
               const daySlots = slotsByDate.get(dateStr) || [];
+              const dayBusy = busyByDate.get(dateStr) || [];
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isSelected = selectedDate && isSameDay(day, selectedDate);
               const isToday = isSameDay(day, today);
               const isPast = isBefore(day, today);
               const hasSlots = daySlots.length > 0;
+              const hasBusy = dayBusy.length > 0;
 
               return (
                 <button
@@ -141,9 +157,14 @@ export function AvailabilityCalendar({
                   }`}
                 >
                   {format(day, "d")}
-                  {hasSlots && !isSelected && (
-                    <span className="absolute bottom-1 h-1 w-1 rounded-full bg-emerald-500" />
-                  )}
+                  <div className="absolute bottom-1 flex gap-0.5">
+                    {hasSlots && !isSelected && (
+                      <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                    )}
+                    {hasBusy && !isSelected && (
+                      <span className="h-1 w-1 rounded-full bg-red-500" />
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -159,6 +180,25 @@ export function AvailabilityCalendar({
               <h3 className="mb-4 text-sm font-semibold text-zinc-800">
                 {format(selectedDate, "EEEE d MMMM", { locale: fr })}
               </h3>
+
+              {/* Google Calendar busy slots */}
+              {(busyByDate.get(format(selectedDate, "yyyy-MM-dd")) || []).map(
+                (busy, i) => {
+                  const startH = new Date(busy.start).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+                  const endH = new Date(busy.end).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+                  return (
+                    <div
+                      key={`busy-${i}`}
+                      className="mb-2 flex items-center justify-between rounded-xl bg-red-50 p-3"
+                    >
+                      <span className="text-sm font-medium text-red-800">
+                        {startH} — {endH}
+                      </span>
+                      <span className="text-[10px] text-red-500">Google Agenda</span>
+                    </div>
+                  );
+                }
+              )}
 
               {/* Existing slots for this day */}
               {(slotsByDate.get(format(selectedDate, "yyyy-MM-dd")) || []).map(
