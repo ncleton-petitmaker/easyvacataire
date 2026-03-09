@@ -283,18 +283,31 @@ export function AvailabilityCalendar({
           {format(panelDate, "EEEE d MMMM", { locale: fr })}
         </h3>
 
-        {/* Confirmed */}
-        {(confirmedByDate.get(dateStr) || []).map((c) => (
-          <div key={c.id} className="mb-2 flex items-center gap-2 rounded-xl bg-emerald-600 p-3">
-            <CheckCircle2 className="size-4 text-white shrink-0" />
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-white">{c.heure_debut} — {c.heure_fin}</div>
-              <div className="text-xs text-emerald-100 truncate">
-                [{c.session_type || "TD"}] {c.matiere || "Cours"}{c.salle ? ` · ${c.salle}` : ""}
+        {/* Confirmed + buffer */}
+        {(confirmedByDate.get(dateStr) || []).map((c) => {
+          const bufferStart = bufferMinutes > 0
+            ? minToTime(Math.max(0, timeToMin(c.heure_debut) - bufferMinutes))
+            : null;
+          return (
+            <div key={c.id}>
+              {bufferStart && (
+                <div className="mb-1 flex items-center justify-between rounded-xl border border-dashed border-violet-300 bg-violet-50 p-2">
+                  <span className="text-xs text-violet-600">{bufferStart} — {c.heure_debut}</span>
+                  <span className="text-[10px] text-violet-400">Temps de route</span>
+                </div>
+              )}
+              <div className="mb-2 flex items-center gap-2 rounded-xl bg-emerald-600 p-3">
+                <CheckCircle2 className="size-4 text-white shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-white">{c.heure_debut} — {c.heure_fin}</div>
+                  <div className="text-xs text-emerald-100 truncate">
+                    [{c.session_type || "TD"}] {c.matiere || "Cours"}{c.salle ? ` · ${c.salle}` : ""}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Rules */}
         {getRulesForDay(getDayOfWeekMon(panelDate)).map((rule, i) => (

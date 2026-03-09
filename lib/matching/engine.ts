@@ -101,6 +101,12 @@ export async function findMatches(
   return matches;
 }
 
+/** Convert "HH:MM" to minutes since midnight */
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
 /**
  * Confirm a match: create a creneau and update the besoin status.
  */
@@ -122,6 +128,45 @@ export async function confirmMatch(
 
   if (besoin.status !== "ouvert" && besoin.status !== "en_attente") {
     throw new Error("Ce besoin n'est plus disponible");
+  }
+
+  // Vérifier le buffer temps de route
+  const { data: intervenant } = await supabase
+    .from("intervenants")
+    .select("buffer_before_minutes")
+    .eq("id", intervenantId)
+    .single();
+
+  const bufferMin = intervenant?.buffer_before_minutes ?? 0;
+
+  if (bufferMin > 0) {
+    // Récupérer les créneaux confirmés du même jour
+    const { data: existingCreneaux } = await supabase
+      .from("creneaux")
+      .select("heure_debut, heure_fin")
+      .eq("intervenant_id", intervenantId)
+      .eq("date", besoin.date)
+      .in("status", ["confirme", "realise"]);
+
+    const besoinStartMin = timeToMinutes(besoin.heure_debut);
+    const besoinEndMin = timeToMinutes(besoin.heure_fin);
+
+    for (const c of existingCreneaux || []) {
+      const cStartMin = timeToMinutes(c.heure_debut);
+      const cEndMin = timeToMinutes(c.heure_fin);
+      // Buffer avant le créneau existant
+      if (besoinEndMin > cStartMin - bufferMin && besoinEndMin <= cStartMin) {
+        throw new Error(`Conflit : le créneau se termine trop près d'un autre (${bufferMin} min de temps de route requis avant ${c.heure_debut})`);
+      }
+      // Buffer avant le nouveau créneau
+      if (cEndMin > besoinStartMin - bufferMin && cEndMin <= besoinStartMin) {
+        throw new Error(`Conflit : un créneau existant se termine trop près (${bufferMin} min de temps de route requis avant ${besoin.heure_debut})`);
+      }
+      // Chevauchement direct
+      if (besoinStartMin < cEndMin && besoinEndMin > cStartMin) {
+        throw new Error(`Conflit : chevauchement avec un créneau existant ${c.heure_debut}–${c.heure_fin}`);
+      }
+    }
   }
 
   // Create creneau
