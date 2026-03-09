@@ -127,11 +127,12 @@ export async function generateSQL(
       1024
     );
 
-    // Extraire le SQL (enlever les blocs markdown si présents)
+    // Extraire le SQL (enlever les blocs markdown et le ; final)
     let sql = response
       .replace(/```sql\n?/gi, "")
       .replace(/```\n?/g, "")
-      .trim();
+      .trim()
+      .replace(/;\s*$/, "");
 
     // Remplacer les placeholders
     sql = sql.replace(/'\{etab_id\}'/g, `'${etablissementId}'`);
