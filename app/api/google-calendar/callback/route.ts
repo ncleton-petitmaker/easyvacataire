@@ -13,9 +13,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const tokens = await exchangeCodeForTokens(code);
+    console.log("[google-callback] tokens received, saving for intervenant:", intervenantId);
     const supabase = getServiceClient();
 
-    await supabase.from("google_oauth_tokens").upsert(
+    const { error } = await supabase.from("google_oauth_tokens").upsert(
       {
         intervenant_id: intervenantId,
         access_token: tokens.access_token,
@@ -28,9 +29,15 @@ export async function GET(req: NextRequest) {
       { onConflict: "intervenant_id" }
     );
 
+    if (error) {
+      console.error("[google-callback] upsert error:", error);
+      return NextResponse.redirect(`${baseUrl}/mes/creneaux?google=error`);
+    }
+
+    console.log("[google-callback] tokens saved successfully");
     return NextResponse.redirect(`${baseUrl}/mes/creneaux?google=connected`);
   } catch (err) {
-    console.error("[google-callback]", err);
+    console.error("[google-callback] exception:", err);
     return NextResponse.redirect(`${baseUrl}/mes/creneaux?google=error`);
   }
 }
