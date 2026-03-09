@@ -33,7 +33,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    console.log("[recurring-unavailability] POST body:", JSON.stringify(body));
     const parsed = createSchema.parse(body);
+    console.log("[recurring-unavailability] parsed:", JSON.stringify(parsed));
 
     const supabase = getServiceClient();
     const { data, error } = await supabase
@@ -43,10 +45,12 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
+      console.error("[recurring-unavailability] insert error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     return NextResponse.json(data, { status: 201 });
   } catch (err) {
+    console.error("[recurring-unavailability] catch error:", err);
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.issues }, { status: 400 });
     }
