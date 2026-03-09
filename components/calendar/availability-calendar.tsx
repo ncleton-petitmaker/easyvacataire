@@ -10,6 +10,10 @@ import {
   endOfWeek,
   addMonths,
   subMonths,
+  addWeeks,
+  subWeeks,
+  addDays,
+  subDays,
   isSameMonth,
   isSameDay,
   isBefore,
@@ -51,6 +55,8 @@ export type RecurringRule = {
   heure_fin: string;
 };
 
+type ViewMode = "month" | "week" | "day";
+
 type Props = {
   slots: Slot[];
   busySlots?: BusySlot[];
@@ -66,6 +72,28 @@ function getDayOfWeekMon(date: Date): number {
   return d === 0 ? 6 : d - 1;
 }
 
+// Convertit "HH:MM" en minutes depuis minuit
+function timeToMin(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Heures affichées dans la grille
+const GRID_START = 7; // 07:00
+const GRID_END = 20; // 20:00
+const GRID_HOURS = Array.from({ length: GRID_END - GRID_START }, (_, i) => GRID_START + i);
+const HOUR_HEIGHT = 60; // px par heure
+const GRID_HEIGHT = (GRID_END - GRID_START) * HOUR_HEIGHT;
+
+function timeToY(t: string): number {
+  const min = timeToMin(t);
+  return ((min / 60) - GRID_START) * HOUR_HEIGHT;
+}
+
+function timeToYClamped(t: string): number {
+  return Math.max(0, Math.min(GRID_HEIGHT, timeToY(t)));
+}
+
 export function AvailabilityCalendar({
   slots,
   busySlots = [],
@@ -75,17 +103,15 @@ export function AvailabilityCalendar({
   onRemoveSlot,
   readOnly = false,
 }: Props) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [heureDebut, setHeureDebut] = useState("09:00");
   const [heureFin, setHeureFin] = useState("12:00");
 
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  const today = startOfDay(new Date());
 
+  // --- Data maps ---
   const slotsByDate = useMemo(() => {
     const map = new Map<string, Slot[]>();
     for (const slot of slots) {
@@ -114,7 +140,6 @@ export function AvailabilityCalendar({
     return map;
   }, [busySlots]);
 
-  // Retourne les règles applicables à un jour donné (0=lundi, 6=dimanche)
   const getRulesForDay = useMemo(() => {
     return (dayOfWeek: number): RecurringRule[] => {
       return recurringRules.filter(
@@ -126,250 +151,519 @@ export function AvailabilityCalendar({
     };
   }, [recurringRules]);
 
+  // --- Navigation ---
+  function navigatePrev() {
+    if (viewMode === "month") setCurrentDate(subMonths(currentDate, 1));
+    else if (viewMode === "week") setCurrentDate(subWeeks(currentDate, 1));
+    else setCurrentDate(subDays(currentDate, 1));
+  }
+  function navigateNext() {
+    if (viewMode === "month") setCurrentDate(addMonths(currentDate, 1));
+    else if (viewMode === "week") setCurrentDate(addWeeks(currentDate, 1));
+    else setCurrentDate(addDays(currentDate, 1));
+  }
+  function navigateToday() {
+    setCurrentDate(new Date());
+    setSelectedDate(new Date());
+  }
+
+  function getTitle(): string {
+    if (viewMode === "month") return format(currentDate, "MMMM yyyy", { locale: fr });
+    if (viewMode === "week") {
+      const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
+      const we = endOfWeek(currentDate, { weekStartsOn: 1 });
+      if (ws.getMonth() === we.getMonth()) {
+        return `${format(ws, "d")} — ${format(we, "d MMMM yyyy", { locale: fr })}`;
+      }
+      return `${format(ws, "d MMM", { locale: fr })} — ${format(we, "d MMM yyyy", { locale: fr })}`;
+    }
+    return format(currentDate, "EEEE d MMMM yyyy", { locale: fr });
+  }
+
   function handleAddSlot() {
     if (!selectedDate || readOnly) return;
     const dateStr = format(selectedDate, "yyyy-MM-dd");
     onAddSlot({ date: dateStr, heure_debut: heureDebut, heure_fin: heureFin });
   }
 
-  const today = startOfDay(new Date());
+  function selectAndSwitchToDay(day: Date) {
+    if (isBefore(day, today)) return;
+    setSelectedDate(day);
+    setCurrentDate(day);
+    setViewMode("day");
+  }
 
-  return (
-    <div className="flex flex-col gap-6 lg:flex-row">
-      {/* Calendar grid */}
-      <div className="flex-1">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-          {/* Month navigation */}
-          <div className="mb-4 flex items-center justify-between">
-            <button
-              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-              className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h3 className="text-sm font-semibold text-zinc-800">
-              {format(currentMonth, "MMMM yyyy", { locale: fr })}
-            </h3>
-            <button
-              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
+  // --- Week days ---
+  const weekDays = useMemo(() => {
+    const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: ws, end: addDays(ws, 6) });
+  }, [currentDate]);
 
-          {/* Day headers */}
-          <div className="mb-2 grid grid-cols-7 text-center">
-            {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d) => (
-              <div key={d} className="py-1 text-xs font-medium text-zinc-400">
-                {d}
+  // --- Month grid ---
+  const monthDays = useMemo(() => {
+    const ms = startOfMonth(currentDate);
+    const me = endOfMonth(currentDate);
+    const cs = startOfWeek(ms, { weekStartsOn: 1 });
+    const ce = endOfWeek(me, { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: cs, end: ce });
+  }, [currentDate]);
+
+  // ============================================
+  // RENDER: View mode toggle + navigation header
+  // ============================================
+  const header = (
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-1">
+        <button
+          onClick={navigatePrev}
+          className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          onClick={navigateToday}
+          className="rounded-lg px-2 py-1 text-xs font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+        >
+          Aujourd&apos;hui
+        </button>
+        <button
+          onClick={navigateNext}
+          className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+        <h3 className="ml-2 text-sm font-semibold text-zinc-800 capitalize">{getTitle()}</h3>
+      </div>
+      <div className="flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5">
+        {(["month", "week", "day"] as ViewMode[]).map((v) => (
+          <button
+            key={v}
+            onClick={() => setViewMode(v)}
+            className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+              viewMode === v
+                ? "bg-white text-zinc-800 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-700"
+            }`}
+          >
+            {v === "month" ? "Mois" : v === "week" ? "Semaine" : "Jour"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ============================================
+  // RENDER: Day detail panel (sidebar or bottom)
+  // ============================================
+  function renderDayPanel(panelDate: Date | null) {
+    if (!panelDate) {
+      return (
+        <p className="text-sm text-zinc-400">
+          Sélectionnez un jour pour voir ou ajouter des disponibilités.
+        </p>
+      );
+    }
+    const dateStr = format(panelDate, "yyyy-MM-dd");
+    return (
+      <>
+        <h3 className="mb-4 text-sm font-semibold text-zinc-800">
+          {format(panelDate, "EEEE d MMMM", { locale: fr })}
+        </h3>
+
+        {/* Confirmed */}
+        {(confirmedByDate.get(dateStr) || []).map((c) => (
+          <div key={c.id} className="mb-2 flex items-center gap-2 rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3">
+            <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-emerald-800">{c.heure_debut} — {c.heure_fin}</div>
+              <div className="text-xs text-emerald-600 truncate">
+                [{c.session_type || "TD"}] {c.matiere || "Cours"}{c.salle ? ` · ${c.salle}` : ""}
               </div>
-            ))}
+            </div>
           </div>
+        ))}
 
-          {/* Days grid */}
-          <div className="grid grid-cols-7 gap-1">
-            {days.map((day) => {
-              const dateStr = format(day, "yyyy-MM-dd");
-              const daySlots = slotsByDate.get(dateStr) || [];
-              const dayConfirmed = confirmedByDate.get(dateStr) || [];
-              const dayBusy = busyByDate.get(dateStr) || [];
-              const dayRules = getRulesForDay(getDayOfWeekMon(day));
-              const isCurrentMonth = isSameMonth(day, currentMonth);
-              const isSelected = selectedDate && isSameDay(day, selectedDate);
-              const isToday = isSameDay(day, today);
-              const isPast = isBefore(day, today);
-              const hasSlots = daySlots.length > 0;
-              const hasConfirmed = dayConfirmed.length > 0;
-              const hasBusy = dayBusy.length > 0;
-              const hasRules = dayRules.length > 0;
+        {/* Rules */}
+        {getRulesForDay(getDayOfWeekMon(panelDate)).map((rule, i) => (
+          <div key={`rule-${i}`} className="mb-2 flex items-center justify-between rounded-xl bg-amber-50 p-3">
+            <span className="text-sm font-medium text-amber-800">{rule.heure_debut} — {rule.heure_fin}</span>
+            <span className="text-[10px] text-amber-500">Indisponible</span>
+          </div>
+        ))}
 
-              return (
-                <button
-                  key={dateStr}
-                  onClick={() => !isPast && setSelectedDate(day)}
-                  disabled={isPast}
-                  className={`relative flex h-11 flex-col items-center justify-center rounded-xl text-sm transition ${
-                    !isCurrentMonth
-                      ? "text-zinc-300"
-                      : isPast
-                        ? "cursor-not-allowed text-zinc-300"
-                        : isSelected
-                          ? "bg-[#4243C4] font-semibold text-white shadow-md"
-                          : hasConfirmed
-                            ? "bg-emerald-100 font-semibold text-emerald-800 ring-2 ring-emerald-400 hover:bg-emerald-200"
-                            : isToday
-                              ? "bg-[#4243C4]/10 font-semibold text-[#4243C4]"
-                              : hasSlots
-                                ? "bg-emerald-50 font-medium text-emerald-700 hover:bg-emerald-100"
-                                : "text-zinc-700 hover:bg-zinc-100"
-                  }`}
-                >
-                  {format(day, "d")}
-                  <div className="absolute bottom-1 flex gap-0.5">
-                    {hasConfirmed && !isSelected && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    )}
-                    {hasSlots && !hasConfirmed && !isSelected && (
-                      <span className="h-1 w-1 rounded-full bg-emerald-500" />
-                    )}
-                    {hasRules && !isSelected && (
-                      <span className="h-1 w-1 rounded-full bg-amber-500" />
-                    )}
-                    {hasBusy && !isSelected && (
-                      <span className="h-1 w-1 rounded-full bg-red-500" />
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+        {/* Busy */}
+        {(busyByDate.get(dateStr) || []).map((busy, i) => {
+          const startH = new Date(busy.start).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+          const endH = new Date(busy.end).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+          return (
+            <div key={`busy-${i}`} className="mb-2 flex items-center justify-between rounded-xl bg-red-50 p-3">
+              <span className="text-sm font-medium text-red-800">{startH} — {endH}</span>
+              <span className="text-[10px] text-red-500">Google Agenda</span>
+            </div>
+          );
+        })}
+
+        {/* Slots */}
+        {(slotsByDate.get(dateStr) || []).map((slot) => (
+          <div key={slot.id || `${slot.date}-${slot.heure_debut}`} className="mb-2 flex items-center justify-between rounded-xl bg-emerald-50 p-3">
+            <span className="text-sm font-medium text-emerald-800">{slot.heure_debut} — {slot.heure_fin}</span>
+            {!readOnly && slot.id && (
+              <button onClick={() => onRemoveSlot(slot.id!)} className="text-xs text-red-400 hover:text-red-600">
+                Retirer
+              </button>
+            )}
+          </div>
+        ))}
+
+        {/* Add form */}
+        {!readOnly && (
+          <div className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-xs text-zinc-500">De</label>
+                <select value={heureDebut} onChange={(e) => setHeureDebut(e.target.value)} className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm">
+                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-zinc-500">À</label>
+                <select value={heureFin} onChange={(e) => setHeureFin(e.target.value)} className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm">
+                  {TIME_OPTIONS.filter((t) => t > heureDebut).map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+            <button onClick={handleAddSlot} className="w-full rounded-lg bg-[#4243C4] py-2 text-sm font-medium text-white hover:bg-[#3234A0]">
+              Ajouter ce créneau
+            </button>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // ============================================
+  // RENDER: Time grid events for a single day column
+  // ============================================
+  function renderTimeEvents(day: Date) {
+    const dateStr = format(day, "yyyy-MM-dd");
+    const dayConfirmed = confirmedByDate.get(dateStr) || [];
+    const daySlots = slotsByDate.get(dateStr) || [];
+    const dayBusy = busyByDate.get(dateStr) || [];
+    const dayRules = getRulesForDay(getDayOfWeekMon(day));
+
+    return (
+      <>
+        {/* Recurring rules (amber) */}
+        {dayRules.map((rule, i) => {
+          const top = timeToYClamped(rule.heure_debut);
+          const bottom = timeToYClamped(rule.heure_fin);
+          const height = Math.max(bottom - top, 2);
+          return (
+            <div
+              key={`rule-${i}`}
+              className="absolute inset-x-0.5 rounded bg-amber-100/70 border border-amber-200"
+              style={{ top, height }}
+            >
+              <div className="px-1 py-0.5 text-[10px] text-amber-700 truncate">
+                {rule.heure_debut}–{rule.heure_fin}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Google busy (red) */}
+        {dayBusy.map((busy, i) => {
+          const startH = new Date(busy.start).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+          const endH = new Date(busy.end).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+          const top = timeToYClamped(startH);
+          const bottom = timeToYClamped(endH);
+          const height = Math.max(bottom - top, 2);
+          return (
+            <div
+              key={`busy-${i}`}
+              className="absolute inset-x-0.5 rounded bg-red-100/70 border border-red-200"
+              style={{ top, height }}
+            >
+              <div className="px-1 py-0.5 text-[10px] text-red-700 truncate">
+                {startH}–{endH}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Availability slots (green) */}
+        {daySlots.map((slot, i) => {
+          const top = timeToYClamped(slot.heure_debut);
+          const bottom = timeToYClamped(slot.heure_fin);
+          const height = Math.max(bottom - top, 2);
+          return (
+            <div
+              key={`slot-${i}`}
+              className="absolute inset-x-0.5 rounded bg-emerald-100/70 border border-emerald-200"
+              style={{ top, height }}
+            >
+              <div className="px-1 py-0.5 text-[10px] text-emerald-700 truncate">
+                {slot.heure_debut}–{slot.heure_fin}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Confirmed (green ring) */}
+        {dayConfirmed.map((c) => {
+          const top = timeToYClamped(c.heure_debut);
+          const bottom = timeToYClamped(c.heure_fin);
+          const height = Math.max(bottom - top, 2);
+          return (
+            <div
+              key={c.id}
+              className="absolute inset-x-0.5 rounded bg-emerald-100 border-2 border-emerald-400 shadow-sm"
+              style={{ top, height }}
+            >
+              <div className="px-1 py-0.5">
+                <div className="text-[10px] font-semibold text-emerald-800 truncate">
+                  {c.heure_debut}–{c.heure_fin}
+                </div>
+                <div className="text-[9px] text-emerald-600 truncate">
+                  [{c.session_type}] {c.matiere || "Cours"}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </>
+    );
+  }
+
+  // ============================================
+  // VIEW: MONTH
+  // ============================================
+  if (viewMode === "month") {
+    return (
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="flex-1">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+            {header}
+            <div className="mb-2 grid grid-cols-7 text-center">
+              {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d) => (
+                <div key={d} className="py-1 text-xs font-medium text-zinc-400">{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {monthDays.map((day) => {
+                const dateStr = format(day, "yyyy-MM-dd");
+                const daySlots = slotsByDate.get(dateStr) || [];
+                const dayConfirmed = confirmedByDate.get(dateStr) || [];
+                const dayBusy = busyByDate.get(dateStr) || [];
+                const dayRules = getRulesForDay(getDayOfWeekMon(day));
+                const isCurrentMonth = isSameMonth(day, currentDate);
+                const isSelected = selectedDate && isSameDay(day, selectedDate);
+                const isToday = isSameDay(day, today);
+                const isPast = isBefore(day, today);
+                const hasSlots = daySlots.length > 0;
+                const hasConfirmed = dayConfirmed.length > 0;
+                const hasBusy = dayBusy.length > 0;
+                const hasRules = dayRules.length > 0;
+
+                return (
+                  <button
+                    key={dateStr}
+                    onClick={() => {
+                      if (!isPast) {
+                        setSelectedDate(day);
+                      }
+                    }}
+                    onDoubleClick={() => selectAndSwitchToDay(day)}
+                    disabled={isPast}
+                    className={`relative flex h-11 flex-col items-center justify-center rounded-xl text-sm transition ${
+                      !isCurrentMonth
+                        ? "text-zinc-300"
+                        : isPast
+                          ? "cursor-not-allowed text-zinc-300"
+                          : isSelected
+                            ? "bg-[#4243C4] font-semibold text-white shadow-md"
+                            : hasConfirmed
+                              ? "bg-emerald-100 font-semibold text-emerald-800 ring-2 ring-emerald-400 hover:bg-emerald-200"
+                              : isToday
+                                ? "bg-[#4243C4]/10 font-semibold text-[#4243C4]"
+                                : hasSlots
+                                  ? "bg-emerald-50 font-medium text-emerald-700 hover:bg-emerald-100"
+                                  : "text-zinc-700 hover:bg-zinc-100"
+                    }`}
+                  >
+                    {format(day, "d")}
+                    <div className="absolute bottom-1 flex gap-0.5">
+                      {hasConfirmed && !isSelected && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+                      {hasSlots && !hasConfirmed && !isSelected && <span className="h-1 w-1 rounded-full bg-emerald-500" />}
+                      {hasRules && !isSelected && <span className="h-1 w-1 rounded-full bg-amber-500" />}
+                      {hasBusy && !isSelected && <span className="h-1 w-1 rounded-full bg-red-500" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <div className="w-full lg:w-80">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+            {renderDayPanel(selectedDate)}
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Slot panel */}
-      <div className="w-full lg:w-80">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6">
-          {selectedDate ? (
-            <>
-              <h3 className="mb-4 text-sm font-semibold text-zinc-800">
-                {format(selectedDate, "EEEE d MMMM", { locale: fr })}
-              </h3>
-
-              {/* Confirmed creneaux (matchs) */}
-              {(confirmedByDate.get(format(selectedDate, "yyyy-MM-dd")) || []).map(
-                (c) => (
-                  <div
-                    key={c.id}
-                    className="mb-2 flex items-center gap-2 rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3"
-                  >
-                    <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-emerald-800">
-                        {c.heure_debut} — {c.heure_fin}
-                      </div>
-                      <div className="text-xs text-emerald-600 truncate">
-                        [{c.session_type || "TD"}] {c.matiere || "Cours"}
-                        {c.salle ? ` · ${c.salle}` : ""}
+  // ============================================
+  // VIEW: WEEK
+  // ============================================
+  if (viewMode === "week") {
+    return (
+      <div className="flex flex-col gap-6 xl:flex-row">
+        <div className="flex-1">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+            {header}
+            {/* Week grid */}
+            <div className="flex">
+              {/* Time labels */}
+              <div className="w-12 shrink-0 pr-2">
+                {GRID_HOURS.map((h) => (
+                  <div key={h} style={{ height: HOUR_HEIGHT }} className="relative">
+                    <span className="absolute -top-2 right-0 text-[10px] text-zinc-400">
+                      {String(h).padStart(2, "0")}:00
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {/* Day columns */}
+              <div className="flex flex-1 divide-x divide-zinc-100">
+                {weekDays.map((day) => {
+                  const isToday2 = isSameDay(day, today);
+                  const isSelected2 = selectedDate && isSameDay(day, selectedDate);
+                  return (
+                    <div key={format(day, "yyyy-MM-dd")} className="flex-1 min-w-0">
+                      {/* Day header */}
+                      <button
+                        onClick={() => {
+                          setSelectedDate(day);
+                          setCurrentDate(day);
+                        }}
+                        onDoubleClick={() => selectAndSwitchToDay(day)}
+                        className={`mb-1 w-full rounded-lg py-1 text-center text-xs font-medium transition ${
+                          isSelected2
+                            ? "bg-[#4243C4] text-white"
+                            : isToday2
+                              ? "bg-[#4243C4]/10 text-[#4243C4] font-semibold"
+                              : "text-zinc-600 hover:bg-zinc-50"
+                        }`}
+                      >
+                        <div>{format(day, "EEE", { locale: fr })}</div>
+                        <div className="text-sm">{format(day, "d")}</div>
+                      </button>
+                      {/* Time grid */}
+                      <div className="relative" style={{ height: GRID_HEIGHT }}>
+                        {/* Hour lines */}
+                        {GRID_HOURS.map((h) => (
+                          <div
+                            key={h}
+                            className="absolute inset-x-0 border-t border-zinc-100"
+                            style={{ top: (h - GRID_START) * HOUR_HEIGHT }}
+                          />
+                        ))}
+                        {/* Now line */}
+                        {isToday2 && (() => {
+                          const now = new Date();
+                          const nowStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+                          const y = timeToY(nowStr);
+                          if (y >= 0 && y <= GRID_HEIGHT) {
+                            return <div className="absolute inset-x-0 border-t-2 border-[#4243C4] z-10" style={{ top: y }} />;
+                          }
+                          return null;
+                        })()}
+                        {/* Events */}
+                        {renderTimeEvents(day)}
                       </div>
                     </div>
-                  </div>
-                )
-              )}
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="w-full xl:w-80">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 sticky top-4">
+            {renderDayPanel(selectedDate)}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-              {/* Recurring unavailability for this day */}
-              {getRulesForDay(getDayOfWeekMon(selectedDate)).map(
-                (rule, i) => (
-                  <div
-                    key={`rule-${i}`}
-                    className="mb-2 flex items-center justify-between rounded-xl bg-amber-50 p-3"
-                  >
-                    <span className="text-sm font-medium text-amber-800">
-                      {rule.heure_debut} — {rule.heure_fin}
-                    </span>
-                    <span className="text-[10px] text-amber-500">Indisponible</span>
-                  </div>
-                )
-              )}
+  // ============================================
+  // VIEW: DAY
+  // ============================================
+  const dayDate = startOfDay(currentDate);
+  const isToday3 = isSameDay(dayDate, today);
 
-              {/* Google Calendar busy slots */}
-              {(busyByDate.get(format(selectedDate, "yyyy-MM-dd")) || []).map(
-                (busy, i) => {
-                  const startH = new Date(busy.start).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
-                  const endH = new Date(busy.end).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+  // Auto-select current day
+  if (!selectedDate || !isSameDay(selectedDate, dayDate)) {
+    // We set it via effect-like pattern but since this is render, use a ref pattern
+    // Instead, just use dayDate as the panel date
+  }
+
+  return (
+    <div className="flex flex-col gap-6 lg:flex-row">
+      <div className="flex-1">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+          {header}
+          <div className="flex">
+            {/* Time labels */}
+            <div className="w-14 shrink-0 pr-2">
+              {GRID_HOURS.map((h) => (
+                <div key={h} style={{ height: HOUR_HEIGHT }} className="relative">
+                  <span className="absolute -top-2 right-0 text-xs text-zinc-400">
+                    {String(h).padStart(2, "0")}:00
+                  </span>
+                </div>
+              ))}
+            </div>
+            {/* Single day column */}
+            <div className="flex-1 relative" style={{ height: GRID_HEIGHT }}>
+              {/* Hour lines */}
+              {GRID_HOURS.map((h) => (
+                <div
+                  key={h}
+                  className="absolute inset-x-0 border-t border-zinc-100"
+                  style={{ top: (h - GRID_START) * HOUR_HEIGHT }}
+                />
+              ))}
+              {/* Now line */}
+              {isToday3 && (() => {
+                const now = new Date();
+                const nowStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+                const y = timeToY(nowStr);
+                if (y >= 0 && y <= GRID_HEIGHT) {
                   return (
-                    <div
-                      key={`busy-${i}`}
-                      className="mb-2 flex items-center justify-between rounded-xl bg-red-50 p-3"
-                    >
-                      <span className="text-sm font-medium text-red-800">
-                        {startH} — {endH}
-                      </span>
-                      <span className="text-[10px] text-red-500">Google Agenda</span>
+                    <div className="absolute inset-x-0 z-10 flex items-center" style={{ top: y }}>
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#4243C4] -ml-1" />
+                      <div className="flex-1 border-t-2 border-[#4243C4]" />
                     </div>
                   );
                 }
-              )}
-
-              {/* Existing availability slots */}
-              {(slotsByDate.get(format(selectedDate, "yyyy-MM-dd")) || []).map(
-                (slot) => (
-                  <div
-                    key={slot.id || `${slot.date}-${slot.heure_debut}`}
-                    className="mb-2 flex items-center justify-between rounded-xl bg-emerald-50 p-3"
-                  >
-                    <span className="text-sm font-medium text-emerald-800">
-                      {slot.heure_debut} — {slot.heure_fin}
-                    </span>
-                    {!readOnly && slot.id && (
-                      <button
-                        onClick={() => onRemoveSlot(slot.id!)}
-                        className="text-xs text-red-400 hover:text-red-600"
-                      >
-                        Retirer
-                      </button>
-                    )}
-                  </div>
-                )
-              )}
-
-              {/* Add slot form */}
-              {!readOnly && (
-                <div className="mt-4 space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="mb-1 block text-xs text-zinc-500">
-                        De
-                      </label>
-                      <select
-                        value={heureDebut}
-                        onChange={(e) => setHeureDebut(e.target.value)}
-                        className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
-                      >
-                        {TIME_OPTIONS.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs text-zinc-500">
-                        À
-                      </label>
-                      <select
-                        value={heureFin}
-                        onChange={(e) => setHeureFin(e.target.value)}
-                        className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
-                      >
-                        {TIME_OPTIONS.filter((t) => t > heureDebut).map(
-                          (t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleAddSlot}
-                    className="w-full rounded-lg bg-[#4243C4] py-2 text-sm font-medium text-white hover:bg-[#3234A0]"
-                  >
-                    Ajouter ce créneau
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <p className="text-sm text-zinc-400">
-              Sélectionnez un jour pour voir ou ajouter des disponibilités.
-            </p>
-          )}
+                return null;
+              })()}
+              {/* Events */}
+              {renderTimeEvents(dayDate)}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="w-full lg:w-80">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 sticky top-4">
+          {renderDayPanel(selectedDate ?? dayDate)}
         </div>
       </div>
     </div>
