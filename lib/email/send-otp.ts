@@ -1,12 +1,20 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) {
+    const key = process.env.RESEND_API_KEY;
+    if (!key) throw new Error("Missing RESEND_API_KEY");
+    _resend = new Resend(key);
+  }
+  return _resend;
+}
 
 export async function sendOtpEmail(
   email: string,
   code: string
 ): Promise<void> {
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: "EasyVacataire <noreply@easyvacataire.fr>",
     to: email,
     subject: `${code} — Code de connexion EasyVacataire`,
