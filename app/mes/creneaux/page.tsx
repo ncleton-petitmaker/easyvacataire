@@ -594,6 +594,10 @@ export default function MesCreneauxPage() {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ intervenant_id: intervenantId, buffer_before_minutes: val }),
                     });
+                    // Re-sync auto-dispos pour recalculer avec le nouveau buffer
+                    if (googleConnected) {
+                      await syncGoogle();
+                    }
                   } catch { /* silencieux */ }
                   setBufferLoading(false);
                 }}
@@ -627,6 +631,12 @@ export default function MesCreneauxPage() {
           <span className="h-2 w-2 rounded-full bg-amber-500" />
           Indisponible (règle)
         </span>
+        {bufferMinutes > 0 && (
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full border border-dashed border-violet-400 bg-violet-50" />
+            Temps de route
+          </span>
+        )}
         {googleConnected && (
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-red-500" />
@@ -645,6 +655,7 @@ export default function MesCreneauxPage() {
           heure_debut: r.heure_debut.slice(0, 5),
           heure_fin: r.heure_fin.slice(0, 5),
         }))}
+        bufferMinutes={bufferMinutes}
         onAddSlot={handleAddSlot}
         onRemoveSlot={handleRemoveSlot}
       />

@@ -67,7 +67,16 @@ export async function POST(req: NextRequest) {
 
   const bufferMinutes = bufferData?.buffer_before_minutes ?? 0;
 
-  // Récupérer les dispos existantes pour ne pas créer de doublons
+  // Supprimer les anciennes auto-dispos pour recalculer avec les règles/buffer actuels
+  await supabase
+    .from("disponibilites_intervenant")
+    .delete()
+    .eq("intervenant_id", intervenant_id)
+    .eq("source", "google_auto")
+    .gte("date", from)
+    .lte("date", to);
+
+  // Récupérer les dispos manuelles existantes pour ne pas créer de doublons
   const { data: existingDispos } = await supabase
     .from("disponibilites_intervenant")
     .select("date, heure_debut, heure_fin")

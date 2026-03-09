@@ -62,6 +62,7 @@ type Props = {
   busySlots?: BusySlot[];
   confirmedSlots?: ConfirmedSlot[];
   recurringRules?: RecurringRule[];
+  bufferMinutes?: number;
   onAddSlot: (slot: Omit<Slot, "id">) => void;
   onRemoveSlot: (slotId: string) => void;
   readOnly?: boolean;
@@ -76,6 +77,12 @@ function getDayOfWeekMon(date: Date): number {
 function timeToMin(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
+}
+
+// Minutes vers "HH:MM"
+function minToTime(mins: number): string {
+  const clamped = Math.max(0, Math.min(1439, mins));
+  return `${String(Math.floor(clamped / 60)).padStart(2, "0")}:${String(clamped % 60).padStart(2, "0")}`;
 }
 
 // Heures affichées dans la grille
@@ -99,6 +106,7 @@ export function AvailabilityCalendar({
   busySlots = [],
   confirmedSlots = [],
   recurringRules = [],
+  bufferMinutes = 0,
   onAddSlot,
   onRemoveSlot,
   readOnly = false,
@@ -412,6 +420,28 @@ export function AvailabilityCalendar({
             >
               <div className="px-1 py-0.5 text-[10px] text-emerald-700 truncate">
                 {slot.heure_debut}–{slot.heure_fin}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Buffer zones avant créneaux confirmés (temps de route) */}
+        {bufferMinutes > 0 && dayConfirmed.map((c, i) => {
+          const cStartMin = timeToMin(c.heure_debut);
+          const bufferStartMin = cStartMin - bufferMinutes;
+          if (bufferStartMin < 0) return null;
+          const bufferStart = minToTime(bufferStartMin);
+          const top = timeToYClamped(bufferStart);
+          const bottom = timeToYClamped(c.heure_debut);
+          const height = Math.max(bottom - top, 2);
+          return (
+            <div
+              key={`buffer-${i}`}
+              className={`absolute left-0 right-0 ${mx} rounded bg-violet-50 border border-dashed border-violet-300 pointer-events-none overflow-hidden`}
+              style={{ top, height }}
+            >
+              <div className="px-1 py-0.5 text-[10px] text-violet-500 truncate">
+                {isCompact ? `${bufferMinutes}min` : `Temps de route (${bufferMinutes} min)`}
               </div>
             </div>
           );
