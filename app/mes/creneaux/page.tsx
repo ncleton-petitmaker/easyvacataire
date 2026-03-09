@@ -384,7 +384,9 @@ export default function MesCreneauxPage() {
       setRuleLabel("");
       loadRecurringRules(intervenantId);
     } else {
-      toast.error("Erreur lors de l'ajout");
+      const errData = await res.json().catch(() => null);
+      console.error("Erreur ajout règle:", res.status, errData);
+      toast.error(errData?.error ? `Erreur : ${typeof errData.error === "string" ? errData.error : JSON.stringify(errData.error)}` : "Erreur lors de l'ajout");
     }
   }
 
