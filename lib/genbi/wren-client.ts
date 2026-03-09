@@ -35,7 +35,7 @@ function getManifestStr(): string {
 function getConnectionInfo() {
   return {
     host: process.env.SUPABASE_DB_HOST || "localhost",
-    port: 5432,
+    port: "5432",
     database: "postgres",
     user: "postgres",
     password: process.env.SUPABASE_DB_PASSWORD || "",
@@ -52,7 +52,7 @@ export interface WrenQueryResult {
  * Exécute une requête SQL via Wren ibis-server.
  */
 export async function wrenQuery(sql: string): Promise<WrenQueryResult> {
-  const res = await fetch(`${WREN_IBIS_URL}/v2/ibis/postgres/query`, {
+  const res = await fetch(`${WREN_IBIS_URL}/v2/connector/postgres/query`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -75,7 +75,7 @@ export async function wrenQuery(sql: string): Promise<WrenQueryResult> {
  */
 export async function wrenDryRun(sql: string): Promise<boolean> {
   const res = await fetch(
-    `${WREN_IBIS_URL}/v2/ibis/postgres/query?dryRun=true`,
+    `${WREN_IBIS_URL}/v2/connector/postgres/query?dryRun=true`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
