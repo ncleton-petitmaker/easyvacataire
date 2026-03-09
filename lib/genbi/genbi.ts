@@ -210,6 +210,37 @@ export async function executeReadonlySQL(
 
 // ── Result Formatting ──
 
+// Labels lisibles pour les colonnes courantes
+const COL_LABELS: Record<string, string> = {
+  first_name: "Prénom",
+  last_name: "Nom",
+  email: "Email",
+  phone: "Tél",
+  specialite: "Spécialité",
+  role: "Rôle",
+  is_active: "Actif",
+  date: "Date",
+  heure_debut: "Début",
+  heure_fin: "Fin",
+  salle: "Salle",
+  session_type: "Type",
+  status: "Statut",
+  payment_status: "Paiement",
+  name: "Nom",
+  code: "Code",
+  volume_horaire_total: "Volume horaire",
+  notes: "Notes",
+  source: "Source",
+};
+
+function colLabel(col: string): string {
+  return COL_LABELS[col] || col.replace(/_/g, " ");
+}
+
+function isEmpty(val: unknown): boolean {
+  return val === null || val === undefined || val === "" || val === "—";
+}
+
 export function formatSearchResults(
   result: QueryResult
 ): string {
@@ -220,18 +251,52 @@ export function formatSearchResults(
   const rows = result.rows;
   const columns = Object.keys(rows[0]);
 
-  // Format tabulaire lisible en WhatsApp
-  const lines: string[] = [];
-  for (const row of rows) {
-    const parts = columns.map((col) => {
-      const val = row[col];
-      const label = col.replace(/_/g, " ");
-      return `*${label}* : ${val ?? "—"}`;
-    });
-    lines.push(parts.join(" | "));
+  // Détecter les colonnes à valeur identique partout (ex: role=intervenant)
+  const uniformCols = new Set<string>();
+  for (const col of columns) {
+    const vals = new Set(rows.map((r) => String(r[col] ?? "")));
+    if (vals.size === 1) uniformCols.add(col);
   }
 
-  return lines.join("\n");
+  // Colonnes à afficher par ligne (exclure les uniformes et les vides)
+  const displayCols = columns.filter((c) => !uniformCols.has(c));
+
+  const blocks: string[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+
+    // Construire le titre (chercher nom/prénom ou première colonne)
+    const firstName = row.first_name || row.prenom || "";
+    const lastName = row.last_name || row.nom || "";
+    const title = firstName || lastName
+      ? `*${firstName} ${lastName}*`.trim()
+      : `*#${i + 1}*`;
+
+    // Détails (exclure les colonnes déjà dans le titre)
+    const titleCols = new Set(["first_name", "last_name", "prenom", "nom"]);
+    const details = displayCols
+      .filter((c) => !titleCols.has(c))
+      .map((c) => {
+        const val = row[c];
+        if (isEmpty(val)) return null;
+        return `  ${colLabel(c)} : ${val}`;
+      })
+      .filter(Boolean);
+
+    blocks.push([title, ...details].join("\n"));
+  }
+
+  let header = `📋 *${result.rowCount} résultat${result.rowCount > 1 ? "s" : ""}*`;
+
+  // Ajouter les valeurs uniformes en en-tête
+  for (const col of uniformCols) {
+    const val = rows[0][col];
+    if (!isEmpty(val) && col !== "etablissement_id") {
+      header += `\n${colLabel(col)} : ${val}`;
+    }
+  }
+
+  return header + "\n\n" + blocks.join("\n\n");
 }
 
 export async function formatStatsResults(
