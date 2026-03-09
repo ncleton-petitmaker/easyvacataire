@@ -33,13 +33,30 @@ type CreneauRaw = {
 
 type RecurringRule = {
   id: string;
-  day_of_week: number;
+  day_of_week: number | null;
   heure_debut: string;
   heure_fin: string;
   label: string | null;
 };
 
 const JOURS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+const DAY_OPTIONS: { value: number | null; label: string }[] = [
+  { value: null, label: "Tous les jours" },
+  { value: -1, label: "Lun — Ven" },
+  ...JOURS.map((j, i) => ({ value: i, label: j })),
+];
+
+function ruleDayLabel(day: number | null): string {
+  if (day === null) return "Tous les jours";
+  if (day === -1) return "Lun — Ven";
+  return JOURS[day] ?? "?";
+}
+
+function ruleDaySummary(day: number | null): string {
+  if (day === null) return "Tous";
+  if (day === -1) return "L-V";
+  return JOURS[day]?.slice(0, 3) ?? "?";
+}
 
 const TIME_OPTIONS = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
@@ -63,10 +80,12 @@ export default function MesCreneauxPage() {
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [showRuleForm, setShowRuleForm] = useState(false);
-  const [ruleDay, setRuleDay] = useState(2); // mercredi par défaut
+  const [ruleDay, setRuleDay] = useState<number | null>(2); // mercredi par défaut
   const [ruleStart, setRuleStart] = useState("13:00");
   const [ruleEnd, setRuleEnd] = useState("19:00");
   const [ruleLabel, setRuleLabel] = useState("");
+  const [bufferMinutes, setBufferMinutes] = useState(0);
+  const [bufferLoading, setBufferLoading] = useState(false);
 
   // Handle Google OAuth return
   useEffect(() => {
@@ -179,6 +198,10 @@ export default function MesCreneauxPage() {
       await Promise.all([
         loadBusySlots(intervenant.id),
         loadRecurringRules(intervenant.id),
+        fetch(`/api/intervenants/buffer?intervenant_id=${intervenant.id}`)
+          .then((r) => r.json())
+          .then((d) => setBufferMinutes(d.buffer_before_minutes ?? 0))
+          .catch(() => {}),
       ]);
     } catch {
       toast.error("Erreur lors du chargement");
@@ -461,7 +484,7 @@ export default function MesCreneauxPage() {
           )}
           {!rulesOpen && recurringRules.length > 0 && (
             <span className="text-[10px] text-zinc-400 ml-auto">
-              {recurringRules.map((r) => `${JOURS[r.day_of_week].slice(0, 3)} ${r.heure_debut.slice(0, 5)}-${r.heure_fin.slice(0, 5)}`).join(" · ")}
+              {recurringRules.map((r) => `${ruleDaySummary(r.day_of_week)} ${r.heure_debut.slice(0, 5)}-${r.heure_fin.slice(0, 5)}`).join(" · ")}
             </span>
           )}
         </button>
@@ -474,7 +497,7 @@ export default function MesCreneauxPage() {
                 className="flex items-center justify-between text-xs"
               >
                 <span className="text-zinc-600">
-                  <span className="font-medium">{JOURS[rule.day_of_week]}</span>{" "}
+                  <span className="font-medium">{ruleDayLabel(rule.day_of_week)}</span>{" "}
                   {rule.heure_debut.slice(0, 5)} — {rule.heure_fin.slice(0, 5)}
                   {rule.label && (
                     <span className="text-zinc-400 ml-1">({rule.label})</span>
@@ -493,12 +516,17 @@ export default function MesCreneauxPage() {
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2 space-y-2">
                 <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                   <select
-                    value={ruleDay}
-                    onChange={(e) => setRuleDay(Number(e.target.value))}
+                    value={ruleDay === null ? "null" : String(ruleDay)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setRuleDay(v === "null" ? null : Number(v));
+                    }}
                     className="rounded border border-zinc-200 px-1.5 py-1 text-xs"
                   >
-                    {JOURS.map((j, i) => (
-                      <option key={i} value={i}>{j}</option>
+                    {DAY_OPTIONS.map((o) => (
+                      <option key={String(o.value)} value={o.value === null ? "null" : String(o.value)}>
+                        {o.label}
+                      </option>
                     ))}
                   </select>
                   <select
@@ -550,6 +578,37 @@ export default function MesCreneauxPage() {
                 + Ajouter une règle
               </button>
             )}
+
+            {/* Buffer avant créneaux confirmés */}
+            <div className="mt-3 flex items-center gap-2 border-t border-zinc-100 pt-3">
+              <span className="text-xs text-zinc-500 whitespace-nowrap">Temps de route avant un créneau :</span>
+              <select
+                value={bufferMinutes}
+                onChange={async (e) => {
+                  const val = Number(e.target.value);
+                  setBufferMinutes(val);
+                  setBufferLoading(true);
+                  try {
+                    await fetch("/api/intervenants/buffer", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ intervenant_id: intervenantId, buffer_before_minutes: val }),
+                    });
+                  } catch { /* silencieux */ }
+                  setBufferLoading(false);
+                }}
+                className="rounded border border-zinc-200 px-1.5 py-1 text-xs"
+              >
+                <option value={0}>Aucun</option>
+                <option value={15}>15 min</option>
+                <option value={30}>30 min</option>
+                <option value={45}>45 min</option>
+                <option value={60}>1h</option>
+                <option value={90}>1h30</option>
+                <option value={120}>2h</option>
+              </select>
+              {bufferLoading && <Loader2 className="size-3 animate-spin text-zinc-400" />}
+            </div>
           </div>
         )}
       </div>

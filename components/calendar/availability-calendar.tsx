@@ -46,7 +46,7 @@ export type ConfirmedSlot = {
 };
 
 export type RecurringRule = {
-  day_of_week: number;
+  day_of_week: number | null;
   heure_debut: string;
   heure_fin: string;
 };
@@ -114,13 +114,16 @@ export function AvailabilityCalendar({
     return map;
   }, [busySlots]);
 
-  const rulesByDay = useMemo(() => {
-    const map = new Map<number, RecurringRule[]>();
-    for (const r of recurringRules) {
-      if (!map.has(r.day_of_week)) map.set(r.day_of_week, []);
-      map.get(r.day_of_week)!.push(r);
-    }
-    return map;
+  // Retourne les règles applicables à un jour donné (0=lundi, 6=dimanche)
+  const getRulesForDay = useMemo(() => {
+    return (dayOfWeek: number): RecurringRule[] => {
+      return recurringRules.filter(
+        (r) =>
+          r.day_of_week === null ||
+          r.day_of_week === dayOfWeek ||
+          (r.day_of_week === -1 && dayOfWeek >= 0 && dayOfWeek <= 4)
+      );
+    };
   }, [recurringRules]);
 
   function handleAddSlot() {
@@ -175,7 +178,7 @@ export function AvailabilityCalendar({
               const daySlots = slotsByDate.get(dateStr) || [];
               const dayConfirmed = confirmedByDate.get(dateStr) || [];
               const dayBusy = busyByDate.get(dateStr) || [];
-              const dayRules = rulesByDay.get(getDayOfWeekMon(day)) || [];
+              const dayRules = getRulesForDay(getDayOfWeekMon(day));
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isSelected = selectedDate && isSameDay(day, selectedDate);
               const isToday = isSameDay(day, today);
@@ -259,7 +262,7 @@ export function AvailabilityCalendar({
               )}
 
               {/* Recurring unavailability for this day */}
-              {(rulesByDay.get(getDayOfWeekMon(selectedDate)) || []).map(
+              {getRulesForDay(getDayOfWeekMon(selectedDate)).map(
                 (rule, i) => (
                   <div
                     key={`rule-${i}`}

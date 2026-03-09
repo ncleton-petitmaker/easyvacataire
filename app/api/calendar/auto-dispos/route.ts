@@ -44,12 +44,28 @@ export async function POST(req: NextRequest) {
   const busySlots: { start: string; end: string }[] =
     gData.calendars?.primary?.busy || [];
 
-  // Récupérer les règles récurrentes
+  // Récupérer les règles récurrentes + buffer + créneaux confirmés
   const supabase = getServiceClient();
-  const { data: recurringRules } = await supabase
-    .from("recurring_unavailability")
-    .select("*")
-    .eq("intervenant_id", intervenant_id);
+  const [{ data: recurringRules }, { data: bufferData }, { data: confirmedCreneaux }] = await Promise.all([
+    supabase
+      .from("recurring_unavailability")
+      .select("*")
+      .eq("intervenant_id", intervenant_id),
+    supabase
+      .from("intervenants")
+      .select("buffer_before_minutes")
+      .eq("id", intervenant_id)
+      .single(),
+    supabase
+      .from("creneaux")
+      .select("date, heure_debut, heure_fin")
+      .eq("intervenant_id", intervenant_id)
+      .in("status", ["confirme", "realise"])
+      .gte("date", from)
+      .lte("date", to),
+  ]);
+
+  const bufferMinutes = bufferData?.buffer_before_minutes ?? 0;
 
   // Récupérer les dispos existantes pour ne pas créer de doublons
   const { data: existingDispos } = await supabase
@@ -93,8 +109,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Vérifier les règles récurrentes pour ce jour
+    // null = tous les jours, -1 = jours de semaine (lun-ven, dayOfWeek 0-4), 0-6 = jour spécifique
     const dayRules = (recurringRules || []).filter(
-      (r: { day_of_week: number }) => r.day_of_week === dayOfWeek
+      (r: { day_of_week: number | null }) =>
+        r.day_of_week === null ||
+        r.day_of_week === dayOfWeek ||
+        (r.day_of_week === -1 && dayOfWeek >= 0 && dayOfWeek <= 4)
     );
 
     // Construire les plages libres pour ce jour
@@ -122,6 +142,20 @@ export async function POST(req: NextRequest) {
       const rStart = (rule as { heure_debut: string }).heure_debut.slice(0, 5);
       const rEnd = (rule as { heure_fin: string }).heure_fin.slice(0, 5);
       freeSlots = subtractRange(freeSlots, rStart, rEnd);
+    }
+
+    // Soustraire le buffer avant les créneaux confirmés (temps de route)
+    if (bufferMinutes > 0) {
+      const dayConfirmed = (confirmedCreneaux || []).filter(
+        (c: { date: string }) => c.date === dateStr
+      );
+      for (const c of dayConfirmed) {
+        const cStart = (c as { heure_debut: string }).heure_debut.slice(0, 5);
+        const cStartMin = parseInt(cStart.split(":")[0]) * 60 + parseInt(cStart.split(":")[1]);
+        const bufferStartMin = Math.max(0, cStartMin - bufferMinutes);
+        const bufferStartH = `${String(Math.floor(bufferStartMin / 60)).padStart(2, "0")}:${String(bufferStartMin % 60).padStart(2, "0")}`;
+        freeSlots = subtractRange(freeSlots, bufferStartH, cStart);
+      }
     }
 
     // Créer les dispos pour les plages libres >= 1h
