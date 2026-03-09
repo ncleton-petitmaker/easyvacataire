@@ -26,36 +26,13 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function requestOtp() {
+  function goToWhatsAppStep() {
     setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/request-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        const msg = data.error || "Erreur";
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
-      if (data.need_whatsapp) {
-        // Window not open — user needs to message us first
-        setStep("whatsapp");
-        return;
-      }
-      toast.success("Code envoyé sur WhatsApp");
-      setStep("code");
-    } catch {
-      const msg = "Erreur de connexion";
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
+    if (!phone || !/^\+\d{8,15}$/.test(phone)) {
+      setError("Numéro de téléphone invalide");
+      return;
     }
+    setStep("whatsapp");
   }
 
   function openWhatsApp() {
@@ -157,31 +134,23 @@ export default function LoginPage() {
                 />
               </div>
               <Button
-                onClick={requestOtp}
-                disabled={loading}
+                onClick={goToWhatsAppStep}
                 className="w-full"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin mr-2" />
-                    Envoi en cours...
-                  </>
-                ) : (
-                  "Recevoir un code sur WhatsApp"
-                )}
+                Recevoir un code sur WhatsApp
               </Button>
             </div>
           )}
 
           {step === "whatsapp" && (
             <div className="space-y-4">
-              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-4 text-center space-y-2">
-                <MessageCircle className="mx-auto size-8 text-amber-600" />
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                  Première connexion : envoyez d&apos;abord un message à notre WhatsApp
+              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-4 text-center space-y-3">
+                <MessageCircle className="mx-auto size-10 text-green-600" />
+                <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                  Envoyez le mot <strong>&laquo; Code &raquo;</strong> sur WhatsApp
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Cela n&apos;est nécessaire qu&apos;une seule fois
+                  Cela permet d&apos;activer l&apos;envoi de votre code de connexion
                 </p>
               </div>
               <Button
@@ -189,7 +158,7 @@ export default function LoginPage() {
                 className="w-full bg-green-600 hover:bg-green-700 text-white"
               >
                 <MessageCircle className="size-4 mr-2" />
-                Ouvrir WhatsApp
+                Envoyer &laquo; Code &raquo; sur WhatsApp
               </Button>
               <Button
                 onClick={retryAfterWhatsApp}
@@ -202,7 +171,7 @@ export default function LoginPage() {
                     Envoi du code...
                   </>
                 ) : (
-                  "J'ai envoyé, recevoir mon code"
+                  "C'est fait, recevoir mon code"
                 )}
               </Button>
               <Button

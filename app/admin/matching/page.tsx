@@ -79,15 +79,15 @@ export default function MatchingPage() {
     if (res.ok) {
       setConfirmed((prev) => new Set(prev).add(besoinId));
       setConfetti(besoinId);
-      toast.success("Creneau confirme", {
-        description: `${intervenantName} a ete assigne(e) avec succes.`,
+      toast.success("Créneau confirmé", {
+        description: `${intervenantName} a été assigné(e) avec succès.`,
       });
       setTimeout(() => setConfetti(null), 2000);
-      // Recharger apres l'animation
+      // Recharger après l'animation
       setTimeout(() => load(), 2500);
     } else {
       toast.error("Erreur", {
-        description: "Impossible de confirmer ce creneau. Veuillez reessayer.",
+        description: "Impossible de confirmer ce créneau. Veuillez réessayer.",
       });
     }
     setConfirming(null);
@@ -102,7 +102,7 @@ export default function MatchingPage() {
     return (
       <Card>
         <CardContent className="py-12 text-center text-muted-foreground">
-          Aucun etablissement selectionne.
+          Aucun établissement sélectionné.
         </CardContent>
       </Card>
     );
@@ -110,7 +110,7 @@ export default function MatchingPage() {
 
   return (
     <div className="space-y-6">
-      {/* En-tete */}
+      {/* En-tête */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -118,10 +118,10 @@ export default function MatchingPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Matching disponibilites
+              Matching disponibilités
             </h1>
             <p className="text-sm text-muted-foreground">
-              Trouvez les creneaux communs entre vos besoins et les disponibilites
+              Trouvez les créneaux communs entre vos besoins et les disponibilités
               des intervenants.
             </p>
           </div>
@@ -132,7 +132,7 @@ export default function MatchingPage() {
           disabled={loading}
         >
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-          {loading ? "Chargement..." : "Rafraichir"}
+          {loading ? "Chargement..." : "Rafraîchir"}
         </Button>
       </div>
 
@@ -313,7 +313,7 @@ export default function MatchingPage() {
                         </div>
                       </div>
 
-                      {/* Fleche de liaison */}
+                      {/* Flèche de liaison */}
                       <div className="hidden md:flex">
                         <div
                           className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-500 ${
@@ -336,7 +336,7 @@ export default function MatchingPage() {
                           <div className="flex items-center justify-center gap-2 rounded-lg bg-emerald-100 p-3 dark:bg-emerald-900/20">
                             <CheckCircle2 className="size-4 text-emerald-600" />
                             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-                              Creneau confirme !
+                              Créneau confirmé !
                             </p>
                           </div>
                         ) : (
@@ -447,7 +447,7 @@ export default function MatchingPage() {
         </div>
       )}
 
-      {/* Etat vide */}
+      {/* État vide */}
       {matches.length === 0 && !loading && (
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-16">
@@ -457,8 +457,8 @@ export default function MatchingPage() {
             <div className="text-center">
               <p className="font-medium">Aucun besoin ouvert pour le moment.</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Ajoutez des besoins et invitez les intervenants a donner leurs
-                disponibilites.
+                Ajoutez des besoins et invitez les intervenants à donner leurs
+                disponibilités.
               </p>
             </div>
           </CardContent>

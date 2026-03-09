@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { getServiceClient } from "@/lib/supabase/server";
-import { sendOtpViaWhatsApp } from "@/lib/whatsapp/send-otp";
+import { sendWhatsAppText } from "@/lib/whatsapp/meta-cloud-api";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,19 +34,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify phone belongs to an active intervenant, admin, or super_admin
-    const { data: intervenant } = await supabase
+    const { data: intervenant, error: intErr } = await supabase
       .from("intervenants")
       .select("id")
       .eq("phone", phone)
       .eq("is_active", true)
       .limit(1);
 
-    const { data: superAdmin } = await supabase
+    const { data: superAdmin, error: saErr } = await supabase
       .from("super_admins")
       .select("id")
       .eq("phone", phone)
       .eq("is_active", true)
       .limit(1);
+
+    console.log("[request-otp] phone:", phone, "intervenant:", intervenant, "intErr:", intErr, "superAdmin:", superAdmin, "saErr:", saErr);
 
     if (
       (!intervenant || intervenant.length === 0) &&
@@ -71,10 +73,18 @@ export async function POST(req: NextRequest) {
       expires_at: expiresAt,
     });
 
-    // Send via WhatsApp
-    await sendOtpViaWhatsApp(phone, code);
-
-    return NextResponse.json({ success: true });
+    // Send OTP via WhatsApp
+    try {
+      await sendWhatsAppText(
+        phone,
+        `Votre code de connexion EasyVacataire : *${code}*\n\nCe code expire dans 5 minutes.\nNe le partagez avec personne.`
+      );
+      return NextResponse.json({ success: true, sent: true });
+    } catch (whatsappErr) {
+      console.error("[request-otp] WhatsApp send failed:", whatsappErr);
+      // Window not open — tell frontend to show WhatsApp step
+      return NextResponse.json({ success: true, sent: false, need_whatsapp: true });
+    }
   } catch (error) {
     console.error("[request-otp] Error:", error);
     return NextResponse.json(
