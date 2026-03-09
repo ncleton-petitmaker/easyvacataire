@@ -53,6 +53,30 @@ export async function updateSession(request: NextRequest) {
   if (user) {
     const role = user.user_metadata?.role as string | undefined;
 
+    // Protect admin-only API routes
+    const adminApiPrefixes = [
+      "/api/besoins",
+      "/api/matching",
+      "/api/intervenants",
+      "/api/matieres",
+      "/api/import",
+      "/api/knowledge",
+      "/api/disponibilites/token",
+    ];
+    const superAdminApiPrefixes = ["/api/etablissements"];
+
+    if (superAdminApiPrefixes.some((p) => pathname.startsWith(p)) && role !== "super_admin") {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+    if (adminApiPrefixes.some((p) => pathname.startsWith(p)) && role !== "admin" && role !== "super_admin") {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
+    // Protect PATCH/POST on creneaux (vacataire can only GET)
+    if (pathname.startsWith("/api/creneaux") && request.method !== "GET" && role !== "admin" && role !== "super_admin") {
+      return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+    }
+
     if (pathname.startsWith("/super-admin") && role !== "super_admin") {
       const url = request.nextUrl.clone();
       if (role === "admin") {
@@ -65,11 +89,11 @@ export async function updateSession(request: NextRequest) {
 
     if (pathname.startsWith("/admin") && role !== "super_admin" && role !== "admin") {
       const url = request.nextUrl.clone();
-      url.pathname = "/mes/creneaux";
+      url.pathname = "/vacataire/suivi";
       return NextResponse.redirect(url);
     }
 
-    if (pathname.startsWith("/mes") && (role === "super_admin" || role === "admin")) {
+    if ((pathname.startsWith("/mes") || pathname.startsWith("/vacataire")) && (role === "super_admin" || role === "admin")) {
       const url = request.nextUrl.clone();
       if (role === "super_admin") {
         url.pathname = "/super-admin";

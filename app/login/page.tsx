@@ -77,7 +77,7 @@ export default function LoginPage() {
       } else if (data.role === "admin") {
         window.location.href = "/admin/creneaux";
       } else {
-        window.location.href = "/mes/creneaux";
+        window.location.href = "/vacataire/suivi";
       }
     } catch {
       setError("Erreur de connexion");
