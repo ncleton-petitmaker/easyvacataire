@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { revokeGoogleTokens } from "@/lib/google-calendar";
+import { getServiceClient } from "@/lib/supabase/server";
 
 export async function POST() {
   const cookieStore = await cookies();
@@ -27,5 +28,14 @@ export async function POST() {
   }
 
   await revokeGoogleTokens(intervenant.id);
+
+  // Supprimer les dispos générées automatiquement depuis Google
+  const serviceClient = getServiceClient();
+  await serviceClient
+    .from("disponibilites_intervenant")
+    .delete()
+    .eq("intervenant_id", intervenant.id)
+    .eq("source", "google_auto");
+
   return NextResponse.json({ success: true });
 }

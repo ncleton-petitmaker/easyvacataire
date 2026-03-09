@@ -17,10 +17,11 @@ import {
   AvailabilityCalendar,
   type Slot,
   type BusySlot,
+  type ConfirmedSlot,
 } from "@/components/calendar/availability-calendar";
 import { useSearchParams } from "next/navigation";
 
-type Creneau = {
+type CreneauRaw = {
   id: string;
   date: string;
   heure_debut: string;
@@ -50,7 +51,7 @@ const TIME_OPTIONS = [
 export default function MesCreneauxPage() {
   const searchParams = useSearchParams();
   const [intervenantId, setIntervenantId] = useState<string | null>(null);
-  const [creneaux, setCreneaux] = useState<Creneau[]>([]);
+  const [confirmedSlots, setConfirmedSlots] = useState<ConfirmedSlot[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [busySlots, setBusySlots] = useState<BusySlot[]>([]);
   const [googleConnected, setGoogleConnected] = useState(false);
@@ -144,7 +145,19 @@ export default function MesCreneauxPage() {
       const creneauxData = await creneauxRes.json();
       const dispoData = await dispoRes.json();
 
-      if (Array.isArray(creneauxData)) setCreneaux(creneauxData);
+      if (Array.isArray(creneauxData)) {
+        setConfirmedSlots(
+          creneauxData.map((c: CreneauRaw) => ({
+            id: c.id,
+            date: c.date,
+            heure_debut: c.heure_debut,
+            heure_fin: c.heure_fin,
+            session_type: c.session_type || "TD",
+            matiere: c.matieres?.name || null,
+            salle: c.salle,
+          }))
+        );
+      }
       if (Array.isArray(dispoData)) {
         setSlots(
           dispoData.map(
@@ -265,7 +278,8 @@ export default function MesCreneauxPage() {
     if (res.ok) {
       setGoogleConnected(false);
       setBusySlots([]);
-      toast.success("Google Agenda déconnecté");
+      toast.success("Google Agenda déconnecté — créneaux auto supprimés");
+      load();
     } else {
       toast.error("Erreur lors de la déconnexion");
     }
@@ -432,42 +446,6 @@ export default function MesCreneauxPage() {
         </div>
       </div>
 
-      {/* Créneaux confirmés */}
-      {creneaux.length > 0 && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-          <h2 className="text-sm font-semibold text-emerald-800 mb-2">
-            {creneaux.length} créneau{creneaux.length > 1 ? "x" : ""} confirmé
-            {creneaux.length > 1 ? "s" : ""}
-          </h2>
-          <div className="space-y-1">
-            {creneaux.slice(0, 5).map((c) => (
-              <div
-                key={c.id}
-                className="flex items-center gap-2 text-sm text-emerald-700"
-              >
-                <span className="font-medium">
-                  {format(new Date(c.date + "T00:00:00"), "EEE d MMM", { locale: fr })}
-                </span>
-                <span>
-                  {c.heure_debut}-{c.heure_fin}
-                </span>
-                <span className="text-emerald-600/70">
-                  [{c.session_type || "TD"}]{" "}
-                  {c.matieres?.name || "Cours"}
-                  {c.salle ? ` · ${c.salle}` : ""}
-                </span>
-              </div>
-            ))}
-            {creneaux.length > 5 && (
-              <p className="text-xs text-emerald-600/70 mt-1">
-                + {creneaux.length - 5} autre
-                {creneaux.length - 5 > 1 ? "s" : ""}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Indisponibilités récurrentes — compact collapsible */}
       <div className="border-b border-zinc-100 pb-2">
         <button
@@ -577,7 +555,11 @@ export default function MesCreneauxPage() {
       </div>
 
       {/* Légende */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full ring-2 ring-emerald-400 bg-emerald-100" />
+          Match confirmé
+        </span>
         <span className="flex items-center gap-1">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
           Disponible
@@ -598,6 +580,7 @@ export default function MesCreneauxPage() {
       <AvailabilityCalendar
         slots={slots}
         busySlots={busySlots}
+        confirmedSlots={confirmedSlots}
         recurringRules={recurringRules.map((r) => ({
           day_of_week: r.day_of_week,
           heure_debut: r.heure_debut.slice(0, 5),

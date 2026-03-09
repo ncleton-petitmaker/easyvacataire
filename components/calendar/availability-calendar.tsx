@@ -17,6 +17,7 @@ import {
   getDay,
 } from "date-fns";
 import { fr } from "date-fns/locale";
+import { CheckCircle2 } from "lucide-react";
 
 export type Slot = {
   id?: string;
@@ -34,8 +35,18 @@ const TIME_OPTIONS = [
 
 export type BusySlot = { start: string; end: string };
 
+export type ConfirmedSlot = {
+  id: string;
+  date: string;
+  heure_debut: string;
+  heure_fin: string;
+  session_type: string;
+  matiere?: string | null;
+  salle?: string | null;
+};
+
 export type RecurringRule = {
-  day_of_week: number; // 0=lundi, 6=dimanche
+  day_of_week: number;
   heure_debut: string;
   heure_fin: string;
 };
@@ -43,6 +54,7 @@ export type RecurringRule = {
 type Props = {
   slots: Slot[];
   busySlots?: BusySlot[];
+  confirmedSlots?: ConfirmedSlot[];
   recurringRules?: RecurringRule[];
   onAddSlot: (slot: Omit<Slot, "id">) => void;
   onRemoveSlot: (slotId: string) => void;
@@ -50,13 +62,14 @@ type Props = {
 };
 
 function getDayOfWeekMon(date: Date): number {
-  const d = getDay(date); // 0=dimanche
-  return d === 0 ? 6 : d - 1; // 0=lundi
+  const d = getDay(date);
+  return d === 0 ? 6 : d - 1;
 }
 
 export function AvailabilityCalendar({
   slots,
   busySlots = [],
+  confirmedSlots = [],
   recurringRules = [],
   onAddSlot,
   onRemoveSlot,
@@ -76,12 +89,20 @@ export function AvailabilityCalendar({
   const slotsByDate = useMemo(() => {
     const map = new Map<string, Slot[]>();
     for (const slot of slots) {
-      const key = slot.date;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(slot);
+      if (!map.has(slot.date)) map.set(slot.date, []);
+      map.get(slot.date)!.push(slot);
     }
     return map;
   }, [slots]);
+
+  const confirmedByDate = useMemo(() => {
+    const map = new Map<string, ConfirmedSlot[]>();
+    for (const c of confirmedSlots) {
+      if (!map.has(c.date)) map.set(c.date, []);
+      map.get(c.date)!.push(c);
+    }
+    return map;
+  }, [confirmedSlots]);
 
   const busyByDate = useMemo(() => {
     const map = new Map<string, BusySlot[]>();
@@ -93,7 +114,6 @@ export function AvailabilityCalendar({
     return map;
   }, [busySlots]);
 
-  // Index recurring rules by day_of_week
   const rulesByDay = useMemo(() => {
     const map = new Map<number, RecurringRule[]>();
     for (const r of recurringRules) {
@@ -153,6 +173,7 @@ export function AvailabilityCalendar({
             {days.map((day) => {
               const dateStr = format(day, "yyyy-MM-dd");
               const daySlots = slotsByDate.get(dateStr) || [];
+              const dayConfirmed = confirmedByDate.get(dateStr) || [];
               const dayBusy = busyByDate.get(dateStr) || [];
               const dayRules = rulesByDay.get(getDayOfWeekMon(day)) || [];
               const isCurrentMonth = isSameMonth(day, currentMonth);
@@ -160,6 +181,7 @@ export function AvailabilityCalendar({
               const isToday = isSameDay(day, today);
               const isPast = isBefore(day, today);
               const hasSlots = daySlots.length > 0;
+              const hasConfirmed = dayConfirmed.length > 0;
               const hasBusy = dayBusy.length > 0;
               const hasRules = dayRules.length > 0;
 
@@ -175,16 +197,21 @@ export function AvailabilityCalendar({
                         ? "cursor-not-allowed text-zinc-300"
                         : isSelected
                           ? "bg-[#4243C4] font-semibold text-white shadow-md"
-                          : isToday
-                            ? "bg-[#4243C4]/10 font-semibold text-[#4243C4]"
-                            : hasSlots
-                              ? "bg-emerald-50 font-medium text-emerald-700 hover:bg-emerald-100"
-                              : "text-zinc-700 hover:bg-zinc-100"
+                          : hasConfirmed
+                            ? "bg-emerald-100 font-semibold text-emerald-800 ring-2 ring-emerald-400 hover:bg-emerald-200"
+                            : isToday
+                              ? "bg-[#4243C4]/10 font-semibold text-[#4243C4]"
+                              : hasSlots
+                                ? "bg-emerald-50 font-medium text-emerald-700 hover:bg-emerald-100"
+                                : "text-zinc-700 hover:bg-zinc-100"
                   }`}
                 >
                   {format(day, "d")}
                   <div className="absolute bottom-1 flex gap-0.5">
-                    {hasSlots && !isSelected && (
+                    {hasConfirmed && !isSelected && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    )}
+                    {hasSlots && !hasConfirmed && !isSelected && (
                       <span className="h-1 w-1 rounded-full bg-emerald-500" />
                     )}
                     {hasRules && !isSelected && (
@@ -209,6 +236,27 @@ export function AvailabilityCalendar({
               <h3 className="mb-4 text-sm font-semibold text-zinc-800">
                 {format(selectedDate, "EEEE d MMMM", { locale: fr })}
               </h3>
+
+              {/* Confirmed creneaux (matchs) */}
+              {(confirmedByDate.get(format(selectedDate, "yyyy-MM-dd")) || []).map(
+                (c) => (
+                  <div
+                    key={c.id}
+                    className="mb-2 flex items-center gap-2 rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3"
+                  >
+                    <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-emerald-800">
+                        {c.heure_debut} — {c.heure_fin}
+                      </div>
+                      <div className="text-xs text-emerald-600 truncate">
+                        [{c.session_type || "TD"}] {c.matiere || "Cours"}
+                        {c.salle ? ` · ${c.salle}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
 
               {/* Recurring unavailability for this day */}
               {(rulesByDay.get(getDayOfWeekMon(selectedDate)) || []).map(
@@ -244,7 +292,7 @@ export function AvailabilityCalendar({
                 }
               )}
 
-              {/* Existing slots for this day */}
+              {/* Existing availability slots */}
               {(slotsByDate.get(format(selectedDate, "yyyy-MM-dd")) || []).map(
                 (slot) => (
                   <div
