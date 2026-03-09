@@ -6,6 +6,10 @@ import { getServiceClient } from "@/lib/supabase/server";
 import type { MistralTool } from "./mistral";
 import { randomBytes } from "crypto";
 import { searchKnowledge as vectorSearch } from "./embeddings";
+import {
+  detectGenBIIntent,
+  runGenBIPipeline,
+} from "@/lib/genbi/genbi";
 
 // ── Tool definitions ──
 
@@ -103,14 +107,34 @@ export const AGENT_TOOLS: MistralTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "query_database",
+      description:
+        "Interroge la base de données pour des statistiques ou recherches (créneaux, intervenants, besoins, disponibilités, matières). Utilise cet outil quand l'utilisateur pose une question analytique sur les données.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "La question en langage naturel à poser à la base de données",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  },
 ];
 
 // ── Tool executor ──
 
-interface ToolContext {
+export interface ToolContext {
   intervenantId: string;
   etablissementId: string;
   phone: string;
+  isAdmin?: boolean;
 }
 
 export function createToolExecutor(ctx: ToolContext) {
@@ -144,6 +168,9 @@ export function createToolExecutor(ctx: ToolContext) {
 
       case "search_knowledge":
         return searchKnowledge(supabase, ctx.etablissementId, args.query as string);
+
+      case "query_database":
+        return queryDatabase(args.query as string, ctx);
 
       default:
         return { error: `Outil inconnu: ${name}` };
@@ -337,4 +364,33 @@ async function searchKnowledge(
       category: d.category,
     })),
   };
+}
+
+async function queryDatabase(
+  query: string,
+  ctx: ToolContext
+): Promise<unknown> {
+  try {
+    const intent = await detectGenBIIntent(query);
+
+    if (intent.intent === "none" || intent.confidence < 0.5) {
+      return {
+        error:
+          "Cette question ne semble pas concerner les données. Essayez une question sur les créneaux, intervenants ou besoins.",
+      };
+    }
+
+    const result = await runGenBIPipeline(query, intent.intent, {
+      etablissementId: ctx.etablissementId,
+      intervenantId: ctx.isAdmin ? undefined : ctx.intervenantId,
+      isAdmin: ctx.isAdmin || false,
+    });
+
+    return { result };
+  } catch (err) {
+    console.error("[query_database] Error:", err);
+    return {
+      error: "Erreur lors de l'interrogation de la base de données.",
+    };
+  }
 }

@@ -7,8 +7,10 @@ import {
 import { runAgent } from "@/lib/ai/mistral";
 import { getConversationHistory } from "@/lib/ai/chat-memory";
 import { AGENT_TOOLS, createToolExecutor } from "@/lib/ai/agent-tools";
+import { routeMessage, getGreetingResponse } from "@/lib/ai/semantic-router";
+import { runGenBIPipeline } from "@/lib/genbi/genbi";
 
-const SYSTEM_PROMPT = `Tu es l'assistant EasyVacataire, un assistant WhatsApp pour les intervenants vacataires en université.
+const BASE_SYSTEM_PROMPT = `Tu es l'assistant EasyVacataire, un assistant WhatsApp pour les intervenants vacataires en université.
 
 ROLE:
 - Aider les intervenants à consulter leur planning de cours
@@ -30,6 +32,27 @@ CONTEXTE:
 - Ils oublient souvent leur emploi du temps et les changements de salle
 - Ce bot est leur outil principal de communication avec l'établissement`;
 
+const ADMIN_GENBI_ADDENDUM = `
+
+CAPACITÉS ANALYTIQUES:
+- Tu peux interroger la base de données pour obtenir des statistiques et rechercher des informations
+- Utilise l'outil query_database pour : compter des créneaux, lister des intervenants disponibles, analyser la répartition des cours, identifier les besoins non couverts
+- Tu as accès à toutes les données de l'établissement`;
+
+const INTERVENANT_GENBI_ADDENDUM = `
+
+CAPACITÉS ANALYTIQUES:
+- Tu peux interroger la base de données pour obtenir des informations sur tes propres cours et disponibilités
+- Utilise l'outil query_database pour tes statistiques personnelles (heures effectuées, créneaux, etc.)
+- Tu n'as accès qu'à tes propres données`;
+
+function buildSystemPrompt(isAdmin: boolean): string {
+  return (
+    BASE_SYSTEM_PROMPT +
+    (isAdmin ? ADMIN_GENBI_ADDENDUM : INTERVENANT_GENBI_ADDENDUM)
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { phone, text, intervenantId, etablissementId, conversationId } =
@@ -38,28 +61,75 @@ export async function POST(req: NextRequest) {
     // Send typing indicator
     await sendTypingPresence(phone);
 
-    let response: string;
+    // Déterminer le rôle de l'utilisateur
+    const supabase = getServiceClient();
+    const { data: intervenant } = await supabase
+      .from("intervenants")
+      .select("role")
+      .eq("id", intervenantId)
+      .single();
+    const isAdmin = intervenant?.role === "admin";
+
+    let response = "";
 
     // Check if Mistral API key is configured
     if (process.env.MISTRAL_API_KEY) {
-      // LLM agent mode
-      const history = conversationId
-        ? await getConversationHistory(conversationId)
-        : [];
+      // Semantic Router — court-circuiter le tool-calling si possible
+      let routed = false;
 
-      const toolExecutor = createToolExecutor({
-        intervenantId,
-        etablissementId,
-        phone,
-      });
+      try {
+        const routeResult = await routeMessage(text);
 
-      response = await runAgent({
-        systemInstruction: SYSTEM_PROMPT,
-        conversationHistory: history,
-        userMessage: text,
-        tools: AGENT_TOOLS,
-        executeTool: toolExecutor,
-      });
+        switch (routeResult.route) {
+          case "greeting":
+            response = getGreetingResponse(text);
+            routed = true;
+            break;
+
+          case "genbi_search":
+          case "genbi_stats":
+            // Pipeline GenBI direct (bypass tool-calling)
+            response = await runGenBIPipeline(
+              text,
+              routeResult.route,
+              {
+                etablissementId,
+                intervenantId: isAdmin ? undefined : intervenantId,
+                isAdmin,
+              }
+            );
+            routed = true;
+            break;
+
+          // planning, disponibilites, knowledge, none → fallback to agent
+          default:
+            break;
+        }
+      } catch (routeErr) {
+        console.error("[chat-agent] Semantic router error, falling back to agent:", routeErr);
+      }
+
+      if (!routed) {
+        // Agent LLM classique avec tool-calling
+        const history = conversationId
+          ? await getConversationHistory(conversationId)
+          : [];
+
+        const toolExecutor = createToolExecutor({
+          intervenantId,
+          etablissementId,
+          phone,
+          isAdmin,
+        });
+
+        response = await runAgent({
+          systemInstruction: buildSystemPrompt(isAdmin),
+          conversationHistory: history,
+          userMessage: text,
+          tools: AGENT_TOOLS,
+          executeTool: toolExecutor,
+        });
+      }
     } else {
       // Fallback: simple keyword routing (no API key)
       response = await handleFallback(text, intervenantId);
@@ -70,7 +140,6 @@ export async function POST(req: NextRequest) {
 
     // Store outbound message
     if (conversationId) {
-      const supabase = getServiceClient();
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         direction: "outbound",
