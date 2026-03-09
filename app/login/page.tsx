@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 
 const WHATSAPP_NUMBER = "33768912695";
 
-type Step = "phone" | "whatsapp" | "code";
+type Step = "phone" | "code";
 
 export default function LoginPage() {
   const [step, setStep] = useState<Step>("phone");
@@ -26,45 +26,17 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function goToWhatsAppStep() {
+  function sendCodeViaWhatsApp() {
     setError("");
     if (!phone || !/^\+\d{8,15}$/.test(phone)) {
       setError("Numéro de téléphone invalide");
       return;
     }
-    setStep("whatsapp");
-  }
-
-  function openWhatsApp() {
+    // Ouvre WhatsApp avec "Code" pré-rempli — le webhook répond automatiquement avec l'OTP
     const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Code")}`;
     window.open(waLink, "_blank");
-  }
-
-  async function retryAfterWhatsApp() {
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/request-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        const msg = data.error || "Erreur";
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
-      toast.success("Code envoyé sur WhatsApp");
-      setStep("code");
-    } catch {
-      const msg = "Erreur de connexion";
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
+    // Affiche directement le champ de saisie du code
+    setStep("code");
   }
 
   async function verifyOtp() {
@@ -134,66 +106,25 @@ export default function LoginPage() {
                 />
               </div>
               <Button
-                onClick={goToWhatsAppStep}
-                className="w-full"
-              >
-                Recevoir un code sur WhatsApp
-              </Button>
-            </div>
-          )}
-
-          {step === "whatsapp" && (
-            <div className="space-y-4">
-              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-4 text-center space-y-3">
-                <MessageCircle className="mx-auto size-10 text-green-600" />
-                <p className="text-sm font-medium text-green-800 dark:text-green-300">
-                  Envoyez le mot <strong>&laquo; Code &raquo;</strong> sur WhatsApp
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Cela permet d&apos;activer l&apos;envoi de votre code de connexion
-                </p>
-              </div>
-              <Button
-                onClick={openWhatsApp}
+                onClick={sendCodeViaWhatsApp}
                 className="w-full bg-green-600 hover:bg-green-700 text-white"
               >
                 <MessageCircle className="size-4 mr-2" />
-                Envoyer &laquo; Code &raquo; sur WhatsApp
-              </Button>
-              <Button
-                onClick={retryAfterWhatsApp}
-                disabled={loading}
-                className="w-full"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin mr-2" />
-                    Envoi du code...
-                  </>
-                ) : (
-                  "C'est fait, recevoir mon code"
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setStep("phone");
-                  setError("");
-                }}
-                className="w-full"
-              >
-                <ArrowLeft className="size-4 mr-2" />
-                Retour
+                Recevoir un code sur WhatsApp
               </Button>
             </div>
           )}
 
           {step === "code" && (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Entrez le code à 6 chiffres reçu sur WhatsApp au{" "}
-                <strong className="text-foreground">{phone}</strong>
-              </p>
+              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-3 text-center space-y-1">
+                <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                  Envoyez <strong>&laquo; Code &raquo;</strong> dans la conversation WhatsApp qui vient de s&apos;ouvrir
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Vous recevrez votre code de connexion en retour
+                </p>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="code">
                   <KeyRound className="inline-block size-4 mr-1.5 -mt-0.5" />
@@ -208,6 +139,7 @@ export default function LoginPage() {
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                   placeholder="000000"
                   className="text-center text-2xl font-mono tracking-widest"
+                  autoFocus
                 />
               </div>
               <Button
@@ -226,6 +158,14 @@ export default function LoginPage() {
               </Button>
               <Button
                 variant="ghost"
+                onClick={sendCodeViaWhatsApp}
+                className="w-full text-green-700"
+              >
+                <MessageCircle className="size-4 mr-2" />
+                Renvoyer un code
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => {
                   setStep("phone");
                   setCode("");
@@ -234,7 +174,7 @@ export default function LoginPage() {
                 className="w-full"
               >
                 <ArrowLeft className="size-4 mr-2" />
-                Retour
+                Changer de numéro
               </Button>
             </div>
           )}
