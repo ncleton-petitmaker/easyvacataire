@@ -14,6 +14,14 @@ import { Loader2, Unplug, Wand2, ChevronDown, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   AvailabilityCalendar,
   type Slot,
   type BusySlot,
@@ -86,12 +94,13 @@ export default function MesCreneauxPage() {
   const [ruleLabel, setRuleLabel] = useState("");
   const [bufferMinutes, setBufferMinutes] = useState(0);
   const [bufferLoading, setBufferLoading] = useState(false);
+  const [showAutoDispoModal, setShowAutoDispoModal] = useState(false);
 
   // Handle Google OAuth return
   useEffect(() => {
     const google = searchParams.get("google");
     if (google === "connected") {
-      toast.success("Google Agenda connecté !");
+      setShowAutoDispoModal(true);
       window.history.replaceState({}, "", "/mes/creneaux");
     } else if (google === "error") {
       toast.error("Erreur lors de la connexion à Google Agenda");
@@ -659,6 +668,40 @@ export default function MesCreneauxPage() {
         onAddSlot={handleAddSlot}
         onRemoveSlot={handleRemoveSlot}
       />
+
+      {/* Modale après connexion Google */}
+      <Dialog open={showAutoDispoModal} onOpenChange={setShowAutoDispoModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Google Agenda connecté</DialogTitle>
+            <DialogDescription>
+              Voulez-vous ajouter automatiquement vos créneaux libres comme disponibilités ?
+              La synchronisation se fera toutes les 15 minutes avec votre calendrier.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAutoDispoModal(false);
+                toast.success("Google Agenda connecté");
+              }}
+            >
+              Non merci
+            </Button>
+            <Button
+              onClick={async () => {
+                setShowAutoDispoModal(false);
+                await handleAutoDispos();
+              }}
+              className="bg-[#4243C4] hover:bg-[#3234A0]"
+            >
+              <Wand2 className="size-4 mr-2" />
+              Oui, remplir automatiquement
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
