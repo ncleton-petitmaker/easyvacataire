@@ -95,6 +95,7 @@ export default function MesCreneauxPage() {
   const [bufferMinutes, setBufferMinutes] = useState(0);
   const [bufferLoading, setBufferLoading] = useState(false);
   const [showAutoDispoModal, setShowAutoDispoModal] = useState(false);
+  const [autoDisposActive, setAutoDisposActive] = useState(false);
 
   // Handle Google OAuth return
   useEffect(() => {
@@ -211,6 +212,15 @@ export default function MesCreneauxPage() {
           .then((r) => r.json())
           .then((d) => setBufferMinutes(d.buffer_before_minutes ?? 0))
           .catch(() => {}),
+        // Vérifier si des auto-dispos existent déjà
+        supabase
+          .from("disponibilites_intervenant")
+          .select("id", { count: "exact", head: true })
+          .eq("intervenant_id", intervenant.id)
+          .eq("source", "google_auto")
+          .then(({ count }) => {
+            if (count && count > 0) setAutoDisposActive(true);
+          }),
       ]);
     } catch {
       toast.error("Erreur lors du chargement");
@@ -309,6 +319,7 @@ export default function MesCreneauxPage() {
     });
     if (res.ok) {
       setGoogleConnected(false);
+      setAutoDisposActive(false);
       setBusySlots([]);
       toast.success("Google Agenda déconnecté — créneaux auto supprimés");
       load();
@@ -338,6 +349,7 @@ export default function MesCreneauxPage() {
       });
       const data = await res.json();
       if (res.ok) {
+        setAutoDisposActive(true);
         if (data.created > 0) {
           toast.success(`${data.created} créneaux libres ajoutés comme disponibles`);
           load();
@@ -421,21 +433,26 @@ export default function MesCreneauxPage() {
               <span className="text-xs text-emerald-600 flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
                 Google Agenda connecté
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs"
-                onClick={handleAutoDispos}
-                disabled={autoLoading}
-              >
-                {autoLoading ? (
-                  <Loader2 className="size-3 mr-1 animate-spin" />
-                ) : (
-                  <Wand2 className="size-3 mr-1" />
+                {autoDisposActive && (
+                  <span className="text-zinc-400 ml-1">· sync auto</span>
                 )}
-                Remplir les créneaux libres
-              </Button>
+              </span>
+              {!autoDisposActive && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={handleAutoDispos}
+                  disabled={autoLoading}
+                >
+                  {autoLoading ? (
+                    <Loader2 className="size-3 mr-1 animate-spin" />
+                  ) : (
+                    <Wand2 className="size-3 mr-1" />
+                  )}
+                  Remplir les créneaux libres
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -692,6 +709,7 @@ export default function MesCreneauxPage() {
             <Button
               onClick={async () => {
                 setShowAutoDispoModal(false);
+                setAutoDisposActive(true);
                 await handleAutoDispos();
               }}
               className="bg-[#4243C4] hover:bg-[#3234A0]"
