@@ -181,8 +181,9 @@ export function AvailabilityCalendar({
   }
 
   function handleAddSlot() {
-    if (!selectedDate || readOnly) return;
-    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    const panelD = viewMode === "day" ? startOfDay(currentDate) : selectedDate;
+    if (!panelD || readOnly) return;
+    const dateStr = format(panelD, "yyyy-MM-dd");
     onAddSlot({ date: dateStr, heure_debut: heureDebut, heure_fin: heureFin });
   }
 
@@ -348,12 +349,15 @@ export function AvailabilityCalendar({
   // ============================================
   // RENDER: Time grid events for a single day column
   // ============================================
-  function renderTimeEvents(day: Date) {
+  function renderTimeEvents(day: Date, isCompact = false) {
     const dateStr = format(day, "yyyy-MM-dd");
     const dayConfirmed = confirmedByDate.get(dateStr) || [];
     const daySlots = slotsByDate.get(dateStr) || [];
     const dayBusy = busyByDate.get(dateStr) || [];
     const dayRules = getRulesForDay(getDayOfWeekMon(day));
+
+    // En compact (semaine), on utilise des marges réduites
+    const mx = isCompact ? "mx-0.5" : "mx-1";
 
     return (
       <>
@@ -365,7 +369,7 @@ export function AvailabilityCalendar({
           return (
             <div
               key={`rule-${i}`}
-              className="absolute inset-x-0.5 rounded bg-amber-100/70 border border-amber-200"
+              className={`absolute left-0 right-0 ${mx} rounded bg-amber-100/70 border border-amber-200 pointer-events-none overflow-hidden`}
               style={{ top, height }}
             >
               <div className="px-1 py-0.5 text-[10px] text-amber-700 truncate">
@@ -385,7 +389,7 @@ export function AvailabilityCalendar({
           return (
             <div
               key={`busy-${i}`}
-              className="absolute inset-x-0.5 rounded bg-red-100/70 border border-red-200"
+              className={`absolute left-0 right-0 ${mx} rounded bg-red-100/70 border border-red-200 pointer-events-none overflow-hidden`}
               style={{ top, height }}
             >
               <div className="px-1 py-0.5 text-[10px] text-red-700 truncate">
@@ -403,7 +407,7 @@ export function AvailabilityCalendar({
           return (
             <div
               key={`slot-${i}`}
-              className="absolute inset-x-0.5 rounded bg-emerald-100/70 border border-emerald-200"
+              className={`absolute left-0 right-0 ${mx} rounded bg-emerald-100/70 border border-emerald-200 pointer-events-none overflow-hidden`}
               style={{ top, height }}
             >
               <div className="px-1 py-0.5 text-[10px] text-emerald-700 truncate">
@@ -421,16 +425,18 @@ export function AvailabilityCalendar({
           return (
             <div
               key={c.id}
-              className="absolute inset-x-0.5 rounded bg-emerald-100 border-2 border-emerald-400 shadow-sm"
+              className={`absolute left-0 right-0 ${mx} rounded bg-emerald-100 border-2 border-emerald-400 shadow-sm pointer-events-none overflow-hidden`}
               style={{ top, height }}
             >
               <div className="px-1 py-0.5">
                 <div className="text-[10px] font-semibold text-emerald-800 truncate">
                   {c.heure_debut}–{c.heure_fin}
                 </div>
-                <div className="text-[9px] text-emerald-600 truncate">
-                  [{c.session_type}] {c.matiere || "Cours"}
-                </div>
+                {!isCompact && (
+                  <div className="text-[9px] text-emerald-600 truncate">
+                    [{c.session_type}] {c.matiere || "Cours"}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -563,13 +569,20 @@ export function AvailabilityCalendar({
                         <div>{format(day, "EEE", { locale: fr })}</div>
                         <div className="text-sm">{format(day, "d")}</div>
                       </button>
-                      {/* Time grid */}
-                      <div className="relative" style={{ height: GRID_HEIGHT }}>
+                      {/* Time grid — clickable background */}
+                      <div
+                        className="relative cursor-pointer hover:bg-zinc-50/50 transition"
+                        style={{ height: GRID_HEIGHT }}
+                        onClick={() => {
+                          setSelectedDate(day);
+                        }}
+                        onDoubleClick={() => selectAndSwitchToDay(day)}
+                      >
                         {/* Hour lines */}
                         {GRID_HOURS.map((h) => (
                           <div
                             key={h}
-                            className="absolute inset-x-0 border-t border-zinc-100"
+                            className="absolute inset-x-0 border-t border-zinc-100 pointer-events-none"
                             style={{ top: (h - GRID_START) * HOUR_HEIGHT }}
                           />
                         ))}
@@ -579,12 +592,12 @@ export function AvailabilityCalendar({
                           const nowStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
                           const y = timeToY(nowStr);
                           if (y >= 0 && y <= GRID_HEIGHT) {
-                            return <div className="absolute inset-x-0 border-t-2 border-[#4243C4] z-10" style={{ top: y }} />;
+                            return <div className="absolute inset-x-0 border-t-2 border-[#4243C4] z-10 pointer-events-none" style={{ top: y }} />;
                           }
                           return null;
                         })()}
                         {/* Events */}
-                        {renderTimeEvents(day)}
+                        {renderTimeEvents(day, true)}
                       </div>
                     </div>
                   );
@@ -605,14 +618,10 @@ export function AvailabilityCalendar({
   // ============================================
   // VIEW: DAY
   // ============================================
+  // Vue jour : selectedDate = currentDate toujours
   const dayDate = startOfDay(currentDate);
   const isToday3 = isSameDay(dayDate, today);
-
-  // Auto-select current day
-  if (!selectedDate || !isSameDay(selectedDate, dayDate)) {
-    // We set it via effect-like pattern but since this is render, use a ref pattern
-    // Instead, just use dayDate as the panel date
-  }
+  const panelDate = dayDate;
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
@@ -636,7 +645,7 @@ export function AvailabilityCalendar({
               {GRID_HOURS.map((h) => (
                 <div
                   key={h}
-                  className="absolute inset-x-0 border-t border-zinc-100"
+                  className="absolute inset-x-0 border-t border-zinc-100 pointer-events-none"
                   style={{ top: (h - GRID_START) * HOUR_HEIGHT }}
                 />
               ))}
@@ -647,7 +656,7 @@ export function AvailabilityCalendar({
                 const y = timeToY(nowStr);
                 if (y >= 0 && y <= GRID_HEIGHT) {
                   return (
-                    <div className="absolute inset-x-0 z-10 flex items-center" style={{ top: y }}>
+                    <div className="absolute inset-x-0 z-10 flex items-center pointer-events-none" style={{ top: y }}>
                       <div className="h-2.5 w-2.5 rounded-full bg-[#4243C4] -ml-1" />
                       <div className="flex-1 border-t-2 border-[#4243C4]" />
                     </div>
@@ -656,14 +665,14 @@ export function AvailabilityCalendar({
                 return null;
               })()}
               {/* Events */}
-              {renderTimeEvents(dayDate)}
+              {renderTimeEvents(dayDate, false)}
             </div>
           </div>
         </div>
       </div>
       <div className="w-full lg:w-80">
         <div className="rounded-2xl border border-zinc-200 bg-white p-6 sticky top-4">
-          {renderDayPanel(selectedDate ?? dayDate)}
+          {renderDayPanel(panelDate)}
         </div>
       </div>
     </div>
