@@ -82,7 +82,7 @@ export async function updateSession(request: NextRequest) {
       if (role === "admin") {
         url.pathname = "/admin/creneaux";
       } else {
-        url.pathname = "/mes/creneaux";
+        url.pathname = "/vacataire/suivi";
       }
       return NextResponse.redirect(url);
     }

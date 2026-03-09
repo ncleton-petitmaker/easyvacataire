@@ -3,12 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Calendar, LogOut, Menu, TrendingUp } from "lucide-react";
+import { Calendar, LogOut, Menu, TrendingUp, CalendarPlus } from "lucide-react";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { Sheet, SheetTrigger, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const navItems = [
+  { href: "/vacataire/disponibilites", label: "Mes disponibilités", icon: CalendarPlus },
   { href: "/mes/creneaux", label: "Mon planning", icon: Calendar },
   { href: "/vacataire/suivi", label: "Suivi heures", icon: TrendingUp },
 ];
