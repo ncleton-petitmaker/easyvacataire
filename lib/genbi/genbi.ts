@@ -3,11 +3,11 @@
  * Détection d'intent + génération SQL + exécution + formatage.
  */
 
-import { getServiceClient } from "@/lib/supabase/server";
 import {
   INTENT_DETECT_PROMPT,
   SQL_GEN_SYSTEM_PROMPT,
 } from "./genbi-config";
+import { wrenQuery, wrenDryRun } from "./wren-client";
 
 const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
 
@@ -176,20 +176,35 @@ export interface QueryResult {
 
 export async function executeReadonlySQL(
   sql: string,
-  etablissementId: string
+  _etablissementId: string
 ): Promise<QueryResult> {
-  const supabase = getServiceClient();
-
-  const { data, error } = await supabase.rpc("exec_readonly_sql", {
-    query_text: sql,
-    etab_id: etablissementId,
-  });
-
-  if (error) {
-    throw new Error(`Erreur SQL : ${error.message}`);
+  // Vérification basique côté client
+  if (
+    sql.match(
+      /^\s*(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE)/i
+    )
+  ) {
+    throw new Error("Seules les requêtes SELECT sont autorisées");
   }
 
-  const rows = (data as Record<string, unknown>[]) || [];
+  // Dry run via Wren pour valider le SQL
+  const isValid = await wrenDryRun(sql);
+  if (!isValid) {
+    throw new Error("Requête SQL invalide (Wren dry run failed)");
+  }
+
+  // Exécuter via Wren Engine
+  const result = await wrenQuery(sql);
+
+  // Convertir le format Wren (columns + data) en rows
+  const rows: Record<string, unknown>[] = result.data.map((row) => {
+    const obj: Record<string, unknown> = {};
+    result.columns.forEach((col, i) => {
+      obj[col] = row[i];
+    });
+    return obj;
+  });
+
   return { rows, rowCount: rows.length };
 }
 

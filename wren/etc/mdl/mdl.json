@@ -1,0 +1,103 @@
+{
+  "catalog": "easyvacataire",
+  "schema": "public",
+  "models": [
+    {
+      "name": "Intervenants",
+      "tableReference": {"catalog":"easyvacataire","schema":"public","table":"intervenants"},
+      "primaryKey": "id",
+      "properties": {"description":"Intervenants vacataires et administrateurs"},
+      "columns": [
+        {"name":"id","type":"VARCHAR","expression":"id"},
+        {"name":"etablissement_id","type":"VARCHAR","expression":"etablissement_id"},
+        {"name":"phone","type":"VARCHAR","expression":"phone"},
+        {"name":"first_name","type":"VARCHAR","expression":"first_name","properties":{"description":"Prénom"}},
+        {"name":"last_name","type":"VARCHAR","expression":"last_name","properties":{"description":"Nom de famille"}},
+        {"name":"email","type":"VARCHAR","expression":"email"},
+        {"name":"specialite","type":"VARCHAR","expression":"specialite"},
+        {"name":"role","type":"VARCHAR","expression":"role","properties":{"description":"intervenant ou admin"}},
+        {"name":"is_active","type":"BOOLEAN","expression":"is_active"},
+        {"name":"created_at","type":"TIMESTAMP","expression":"created_at"}
+      ]
+    },
+    {
+      "name": "Matieres",
+      "tableReference": {"catalog":"easyvacataire","schema":"public","table":"matieres"},
+      "primaryKey": "id",
+      "properties": {"description":"Matières et modules d'enseignement"},
+      "columns": [
+        {"name":"id","type":"VARCHAR","expression":"id"},
+        {"name":"etablissement_id","type":"VARCHAR","expression":"etablissement_id"},
+        {"name":"code","type":"VARCHAR","expression":"code"},
+        {"name":"name","type":"VARCHAR","expression":"name","properties":{"description":"Nom de la matière"}},
+        {"name":"volume_horaire_total","type":"INTEGER","expression":"volume_horaire_total","properties":{"description":"En minutes"}},
+        {"name":"description","type":"VARCHAR","expression":"description"},
+        {"name":"created_at","type":"TIMESTAMP","expression":"created_at"}
+      ]
+    },
+    {
+      "name": "DisponibilitesIntervenant",
+      "tableReference": {"catalog":"easyvacataire","schema":"public","table":"disponibilites_intervenant"},
+      "primaryKey": "id",
+      "properties": {"description":"Créneaux de disponibilité déclarés par les intervenants"},
+      "columns": [
+        {"name":"id","type":"VARCHAR","expression":"id"},
+        {"name":"intervenant_id","type":"VARCHAR","expression":"intervenant_id"},
+        {"name":"date","type":"DATE","expression":"date"},
+        {"name":"heure_debut","type":"TIME","expression":"heure_debut"},
+        {"name":"heure_fin","type":"TIME","expression":"heure_fin"},
+        {"name":"source","type":"VARCHAR","expression":"source"},
+        {"name":"created_at","type":"TIMESTAMP","expression":"created_at"}
+      ]
+    },
+    {
+      "name": "BesoinsEtablissement",
+      "tableReference": {"catalog":"easyvacataire","schema":"public","table":"besoins_etablissement"},
+      "primaryKey": "id",
+      "properties": {"description":"Créneaux à pourvoir par l'établissement"},
+      "columns": [
+        {"name":"id","type":"VARCHAR","expression":"id"},
+        {"name":"etablissement_id","type":"VARCHAR","expression":"etablissement_id"},
+        {"name":"matiere_id","type":"VARCHAR","expression":"matiere_id"},
+        {"name":"date","type":"DATE","expression":"date"},
+        {"name":"heure_debut","type":"TIME","expression":"heure_debut"},
+        {"name":"heure_fin","type":"TIME","expression":"heure_fin"},
+        {"name":"salle","type":"VARCHAR","expression":"salle"},
+        {"name":"notes","type":"VARCHAR","expression":"notes"},
+        {"name":"session_type","type":"VARCHAR","expression":"session_type"},
+        {"name":"status","type":"VARCHAR","expression":"status","properties":{"description":"ouvert, attribue, annule"}},
+        {"name":"created_at","type":"TIMESTAMP","expression":"created_at"}
+      ]
+    },
+    {
+      "name": "Creneaux",
+      "tableReference": {"catalog":"easyvacataire","schema":"public","table":"creneaux"},
+      "primaryKey": "id",
+      "properties": {"description":"Créneaux confirmés (résultat du matching)"},
+      "columns": [
+        {"name":"id","type":"VARCHAR","expression":"id"},
+        {"name":"besoin_id","type":"VARCHAR","expression":"besoin_id"},
+        {"name":"intervenant_id","type":"VARCHAR","expression":"intervenant_id"},
+        {"name":"matiere_id","type":"VARCHAR","expression":"matiere_id"},
+        {"name":"etablissement_id","type":"VARCHAR","expression":"etablissement_id"},
+        {"name":"date","type":"DATE","expression":"date"},
+        {"name":"heure_debut","type":"TIME","expression":"heure_debut"},
+        {"name":"heure_fin","type":"TIME","expression":"heure_fin"},
+        {"name":"salle","type":"VARCHAR","expression":"salle"},
+        {"name":"session_type","type":"VARCHAR","expression":"session_type"},
+        {"name":"status","type":"VARCHAR","expression":"status","properties":{"description":"confirme, annule, modifie"}},
+        {"name":"payment_status","type":"VARCHAR","expression":"payment_status"},
+        {"name":"notified","type":"BOOLEAN","expression":"notified"},
+        {"name":"created_at","type":"TIMESTAMP","expression":"created_at"},
+        {"name":"updated_at","type":"TIMESTAMP","expression":"updated_at"}
+      ]
+    }
+  ],
+  "relationships": [
+    {"name":"DisposIntervenants","models":["DisponibilitesIntervenant","Intervenants"],"joinType":"MANY_TO_ONE","condition":"DisponibilitesIntervenant.intervenant_id = Intervenants.id"},
+    {"name":"CreneauxIntervenants","models":["Creneaux","Intervenants"],"joinType":"MANY_TO_ONE","condition":"Creneaux.intervenant_id = Intervenants.id"},
+    {"name":"CreneauxMatieres","models":["Creneaux","Matieres"],"joinType":"MANY_TO_ONE","condition":"Creneaux.matiere_id = Matieres.id"},
+    {"name":"BesoinsMatieres","models":["BesoinsEtablissement","Matieres"],"joinType":"MANY_TO_ONE","condition":"BesoinsEtablissement.matiere_id = Matieres.id"},
+    {"name":"CreneauxBesoins","models":["Creneaux","BesoinsEtablissement"],"joinType":"MANY_TO_ONE","condition":"Creneaux.besoin_id = BesoinsEtablissement.id"}
+  ]
+}
