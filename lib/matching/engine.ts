@@ -120,8 +120,8 @@ export async function confirmMatch(
     throw new Error("Besoin introuvable");
   }
 
-  if (besoin.status !== "ouvert") {
-    throw new Error("Ce besoin n'est plus ouvert");
+  if (besoin.status !== "ouvert" && besoin.status !== "en_attente") {
+    throw new Error("Ce besoin n'est plus disponible");
   }
 
   // Create creneau

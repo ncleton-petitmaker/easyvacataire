@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
-import { markAsRead } from "@/lib/whatsapp/evolution";
+import { markAsRead, sendWhatsAppText } from "@/lib/whatsapp/evolution";
+import { handleResponse } from "@/lib/demandes/engine";
 
 // Simple deduplication (30s TTL)
 const seen = new Map<string, number>();
@@ -99,6 +100,44 @@ export async function POST(req: NextRequest) {
         content: text,
         whatsapp_message_id: messageId,
       });
+    }
+
+    // Intercepter les réponses O/N pour les demandes de disponibilité
+    const normalized = text.trim().toUpperCase();
+    if (
+      normalized === "O" ||
+      normalized === "OUI" ||
+      normalized === "N" ||
+      normalized === "NON"
+    ) {
+      const { data: pendingDemande } = await supabase
+        .from("demandes_disponibilite")
+        .select("id")
+        .eq("intervenant_id", intervenant.id)
+        .eq("status", "sent")
+        .limit(1)
+        .single();
+
+      if (pendingDemande) {
+        const accepted = normalized === "O" || normalized === "OUI";
+        const confirmMsg = await handleResponse(
+          supabase,
+          intervenant.id,
+          accepted
+        );
+        await sendWhatsAppText(phone, confirmMsg);
+
+        // Stocker la réponse sortante
+        if (conversation) {
+          await supabase.from("messages").insert({
+            conversation_id: conversation.id,
+            direction: "outbound",
+            content: confirmMsg,
+          });
+        }
+
+        return NextResponse.json({ ok: true });
+      }
     }
 
     // Forward to chat agent (always use localhost to avoid SSL/network issues)

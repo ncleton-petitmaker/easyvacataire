@@ -44,3 +44,4 @@ vps_setup.sh
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+captures/
