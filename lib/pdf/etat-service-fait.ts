@@ -30,7 +30,7 @@ export function generateEtatServiceFait(params: Params): Blob {
   const {
     intervenant,
     creneaux,
-    etablissement = "Établissement",
+    etablissement = "\xc9tablissement",
     anneeUniversitaire,
   } = params;
 
@@ -46,15 +46,15 @@ export function generateEtatServiceFait(params: Params): Blob {
   const margin = 15;
   let y = 20;
 
-  // --- En-tête ---
+  // --- En-t\xeate ---
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("ETAT DE SERVICE FAIT", pageWidth / 2, y, { align: "center" });
+  doc.text("\xc9TAT DE SERVICE FAIT", pageWidth / 2, y, { align: "center" });
   y += 8;
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`${etablissement} - Annee universitaire ${annee}`, pageWidth / 2, y, {
+  doc.text(etablissement + " - Ann\xe9e universitaire " + annee, pageWidth / 2, y, {
     align: "center",
   });
   y += 12;
@@ -67,12 +67,12 @@ export function generateEtatServiceFait(params: Params): Blob {
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`Nom : ${intervenant.last_name}`, margin, y);
+  doc.text("Nom : " + intervenant.last_name, margin, y);
   y += 5;
-  doc.text(`Prenom : ${intervenant.first_name}`, margin, y);
+  doc.text("Pr\xe9nom : " + intervenant.first_name, margin, y);
   y += 5;
   if (intervenant.email) {
-    doc.text(`Email : ${intervenant.email}`, margin, y);
+    doc.text("Email : " + intervenant.email, margin, y);
     y += 5;
   }
   y += 5;
@@ -83,7 +83,7 @@ export function generateEtatServiceFait(params: Params): Blob {
   );
 
   const colX = [margin, margin + 25, margin + 55, margin + 70, margin + 100, margin + 118, margin + 138];
-  const headers = ["Date", "Horaire", "Type", "Matiere", "Heures", "HeTD", "Montant"];
+  const headers = ["Date", "Horaire", "Type", "Mati\xe8re", "Heures", "HeTD", "Montant"];
 
   // Header row
   doc.setFillColor(66, 67, 196);
@@ -124,12 +124,12 @@ export function generateEtatServiceFait(params: Params): Blob {
 
     const dateStr = c.date.split("-").reverse().join("/");
     doc.text(dateStr, colX[0] + 1, y + 4);
-    doc.text(`${c.heure_debut}-${c.heure_fin}`, colX[1] + 1, y + 4);
+    doc.text(c.heure_debut + "-" + c.heure_fin, colX[1] + 1, y + 4);
     doc.text(type, colX[2] + 1, y + 4);
     doc.text((c.matieres?.code || c.matieres?.name || "-").substring(0, 18), colX[3] + 1, y + 4);
     doc.text(hours.toFixed(1), colX[4] + 1, y + 4);
     doc.text(hetd.toFixed(2), colX[5] + 1, y + 4);
-    doc.text(`${montant.toFixed(2)} EUR`, colX[6] + 1, y + 4);
+    doc.text(montant.toFixed(2) + " \u20ac", colX[6] + 1, y + 4);
 
     y += 6;
 
@@ -149,7 +149,7 @@ export function generateEtatServiceFait(params: Params): Blob {
   doc.text("TOTAL", colX[0] + 1, y + 5);
   doc.text(totalHeures.toFixed(1), colX[4] + 1, y + 5);
   doc.text(totalHeTD.toFixed(2), colX[5] + 1, y + 5);
-  doc.text(`${totalMontant.toFixed(2)} EUR`, colX[6] + 1, y + 5);
+  doc.text(totalMontant.toFixed(2) + " \u20ac", colX[6] + 1, y + 5);
   y += 12;
 
   doc.setTextColor(0, 0, 0);
@@ -158,7 +158,7 @@ export function generateEtatServiceFait(params: Params): Blob {
   doc.setFontSize(8);
   doc.setFont("helvetica", "italic");
   doc.text(
-    `Plafond reglementaire : ${PLAFOND_HETD} HeTD/an. Total cumule : ${totalHeTD.toFixed(2)} HeTD (${((totalHeTD / PLAFOND_HETD) * 100).toFixed(1)}%).`,
+    "Plafond r\xe9glementaire : " + PLAFOND_HETD + " HeTD/an. Total cumul\xe9 : " + totalHeTD.toFixed(2) + " HeTD (" + ((totalHeTD / PLAFOND_HETD) * 100).toFixed(1) + "%).",
     margin,
     y
   );
@@ -172,7 +172,7 @@ export function generateEtatServiceFait(params: Params): Blob {
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text("Fait a _______________________, le _______________________", margin, y);
+  doc.text("Fait \xe0 _______________________, le _______________________", margin, y);
   y += 15;
 
   doc.text("Signature du vacataire :", margin, y);
@@ -188,7 +188,7 @@ export function generateEtatServiceFait(params: Params): Blob {
   doc.setFontSize(7);
   doc.setTextColor(150, 150, 150);
   doc.text(
-    `Document genere le ${now.toLocaleDateString("fr-FR")} - EasyVacataire`,
+    "Document g\xe9n\xe9r\xe9 le " + now.toLocaleDateString("fr-FR") + " - EasyVacataire",
     pageWidth / 2,
     footerY,
     { align: "center" }
