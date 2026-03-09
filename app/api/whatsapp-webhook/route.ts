@@ -97,9 +97,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Forward to chat agent
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    await fetch(`${appUrl}/api/chat-agent`, {
+    // Forward to chat agent (always use localhost to avoid SSL/network issues)
+    const internalUrl = "http://localhost:3000";
+    const agentRes = await fetch(`${internalUrl}/api/chat-agent`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -110,6 +110,10 @@ export async function POST(req: NextRequest) {
         conversationId: conversation?.id,
       }),
     });
+
+    if (!agentRes.ok) {
+      console.error("[whatsapp-webhook] chat-agent error:", agentRes.status, await agentRes.text());
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

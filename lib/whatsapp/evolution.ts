@@ -34,6 +34,7 @@ export async function sendTypingPresence(
     const instance = instanceName || evo.instance;
     const number = phone.startsWith("+") ? phone.substring(1) : phone;
 
+    // Try composing presence (Baileys) — silently fails on Business API
     await fetch(`${evo.url}/chat/sendPresence/${instance}`, {
       method: "POST",
       headers: {
@@ -45,8 +46,11 @@ export async function sendTypingPresence(
         presence: "composing",
         delay: 10000,
       }),
+    }).catch(() => {
+      // Expected to fail on WhatsApp Business API — no typing indicator support
     });
   } catch (err) {
+    // Non-critical, don't block the flow
     console.error("[evolution] sendTypingPresence failed:", err);
   }
 }
