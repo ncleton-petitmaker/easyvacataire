@@ -79,7 +79,9 @@ Les infos pratiques du campus (plans, procédures, FAQ) sont indexées et consul
   - [Module 3 : Bot WhatsApp](#module-3--bot-whatsapp)
   - [Module 4 : Base de connaissances RAG](#module-4--base-de-connaissances-rag)
   - [Module 5 : Dashboard d'administration](#module-5--dashboard-dadministration)
-  - [Module 6 : Rappels automatiques](#module-6--rappels-automatiques)
+  - [Module 6 : Espace vacataire](#module-6--espace-vacataire)
+  - [Module 7 : GenBI](#module-7--genbi--interrogation-en-langage-naturel)
+  - [Module 8 : Rappels automatiques](#module-8--rappels-automatiques)
 - [Déploiement](#déploiement)
 - [Schéma de la base de données](#schéma-de-la-base-de-données)
 - [Feuille de route](#feuille-de-route)
@@ -95,22 +97,32 @@ Les infos pratiques du campus (plans, procédures, FAQ) sont indexées et consul
 
 | Fonctionnalité | Description | Status |
 |---|---|---|
-| **Auth OTP WhatsApp** | Connexion par code à 6 chiffres envoyé sur WhatsApp | Done |
+| **Auth OTP WhatsApp + Email** | Connexion par code à 6 chiffres envoyé sur WhatsApp ou email (Resend) | Done |
 | **CRUD Intervenants** | Gestion complète des vacataires (ajout, import, activation) | Done |
 | **CRUD Matières** | Gestion des modules et matières d'enseignement | Done |
 | **Saisie des besoins** | Calendrier + import CSV des créneaux à pourvoir | Done |
+| **Calendrier multi-vues** | Vues Mois / Semaine / Jour avec grille horaire interactive | Done |
 | **Disponibilités web** | Calendrier interactif de sélection de plages horaires | Done |
 | **Disponibilités WhatsApp** | Saisie conversationnelle via le bot | Done |
 | **Lien public dispos** | Lien sans auth pour saisir ses dispos (envoyé par WhatsApp) | Done |
-| **Algorithme de matching** | Croisement automatique besoins / disponibilités | Done |
-| **Vue matching** | Interface visuelle split-screen avec animation | Done |
+| **Sync Google Calendar** | Import auto des créneaux libres depuis Google Agenda | Done |
+| **Indisponibilités récurrentes** | Règles d'indisponibilité (jour, lun–ven, tous les jours) | Done |
+| **Buffer temps de route** | Temps de trajet configurable entre les créneaux (0–180 min) | Done |
+| **Algorithme de matching** | Croisement automatique besoins / disponibilités avec validation buffer | Done |
+| **Vue matching** | Interface visuelle split-screen avec animation style Tinder | Done |
+| **Demandes de disponibilité** | File d'attente WhatsApp + page de validation web par token | Done |
+| **Suivi HeTD** | Calcul automatique CM/TD/TP → heures équivalent TD + tarifs officiels | Done |
+| **Suivi paiements** | Statut par session (payé/non payé) + plafond 187 HeTD/an | Done |
+| **Export PDF** | État de service fait conforme au format universitaire | Done |
+| **GenBI** | Interrogation de la base de données en langage naturel (SQL via Wren) | Done |
 | **Bot WhatsApp** | Agent conversationnel avec outils (planning, dispos, RAG) | Done |
 | **Base de connaissances** | CRUD + upload de documents + indexation vectorielle | Done |
 | **Recherche RAG** | Recherche sémantique dans la base de connaissances | Done |
 | **Rappels automatiques** | Notifications J-7, J-1, J-0 par WhatsApp | Done |
-| **Dashboard intervenant** | Planning, disponibilités, infos pratiques | Done |
-| **Dashboard admin** | Vue complète : intervenants, besoins, matching, conversations | Done |
-| **Multi-établissement** | Architecture multi-tenant par établissement | Done |
+| **Espace vacataire** | Suivi heures/paiements, dispos, demandes, planning unifié | Done |
+| **Dashboard admin** | Intervenants, besoins, matching, conversations, analytics HeTD | Done |
+| **Super-admin** | Gestion multi-établissement, rôles et permissions | Done |
+| **Sécurité par rôle** | Middleware + API protégés par rôle (admin, super_admin, vacataire) | Done |
 | **Déploiement Docker** | Dockerfile multi-stage optimisé pour la production | Done |
 
 ---
@@ -126,6 +138,9 @@ Les infos pratiques du campus (plans, procédures, FAQ) sont indexées et consul
 | **Auth** | OTP WhatsApp via [Evolution API](https://doc.evolution-api.com/) | Authentification naturelle pour les utilisateurs WhatsApp |
 | **WhatsApp** | [Evolution API](https://doc.evolution-api.com/) (self-hosted) | API WhatsApp open source, multi-instance |
 | **LLM** | [Mistral AI](https://mistral.ai/) | Embeddings + chat, performant en français |
+| **Email** | [Resend](https://resend.com/) | OTP par email, fiable et simple |
+| **Calendrier** | [Google Calendar API](https://developers.google.com/calendar) | Sync bidirectionnelle des disponibilités |
+| **PDF** | [jsPDF](https://github.com/parallaxis/jsPDF) | Génération côté client des états de service |
 | **Déploiement** | [Docker](https://www.docker.com/) | Conteneurisation, reproductibilité |
 
 ---
@@ -225,6 +240,13 @@ EVOLUTION_INSTANCE=univ-bot
 # Mistral AI
 MISTRAL_API_KEY=your-mistral-api-key
 
+# Email (Resend) — pour l'OTP par email
+RESEND_API_KEY=your-resend-api-key
+
+# Google Calendar (OAuth)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
 # Application
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
@@ -243,9 +265,14 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 | `EVOLUTION_API_KEY` | Clé d'authentification Evolution API | Oui |
 | `EVOLUTION_INSTANCE` | Nom de l'instance WhatsApp dans Evolution | Oui |
 | `MISTRAL_API_KEY` | Clé API Mistral pour le LLM et les embeddings | Non* |
+| `RESEND_API_KEY` | Clé API Resend pour l'envoi d'OTP par email | Non** |
+| `GOOGLE_CLIENT_ID` | ID client OAuth Google (pour la sync Calendar) | Non*** |
+| `GOOGLE_CLIENT_SECRET` | Secret client OAuth Google | Non*** |
 | `NEXT_PUBLIC_APP_URL` | URL publique de l'application | Oui |
 
 *\* Sans `MISTRAL_API_KEY`, le bot WhatsApp fonctionne en mode fallback (réponses par mots-clés, sans IA).*
+*\*\* Sans `RESEND_API_KEY`, l'OTP est envoyé uniquement par WhatsApp.*
+*\*\*\* Sans les clés Google, la synchronisation Google Calendar est désactivée.*
 
 </details>
 
@@ -261,62 +288,78 @@ easyvacataire/
 │   ├── login/                    # Page de connexion OTP
 │   ├── admin/                    # Dashboard administration
 │   │   ├── intervenants/         # Gestion des vacataires
+│   │   │   └── [id]/             # Fiche vacataire (analytics, paiements, PDF)
 │   │   ├── matieres/             # Gestion des matières
 │   │   ├── besoins/              # Besoins de l'établissement
-│   │   ├── matching/             # Vue matching avec animation
-│   │   ├── creneaux/             # Planning confirmé
+│   │   ├── matching/             # Vue matching avec animation Tinder
+│   │   ├── creneaux/             # Planning confirmé (multi-vues)
 │   │   ├── knowledge/            # Base de connaissances
 │   │   └── conversations/        # Historique WhatsApp
-│   ├── mes/                      # Dashboard intervenant
-│   │   ├── creneaux/             # Mon planning
-│   │   ├── disponibilites/       # Mes disponibilités
-│   │   └── infos/                # Infos pratiques
+│   ├── super-admin/              # Gestion multi-établissement
+│   ├── vacataire/                # Espace vacataire
+│   │   ├── suivi/                # Suivi heures, HeTD, paiements
+│   │   ├── disponibilites/       # Saisie des disponibilités
+│   │   └── demandes/             # Demandes de disponibilité
+│   ├── mes/creneaux/             # Planning unifié (dispos, Google, buffer)
 │   ├── dispos/[token]/           # Lien public de disponibilités
+│   ├── demande/[token]/          # Validation demande par token
 │   └── api/
 │       ├── auth/                 # OTP request + verify
-│       ├── whatsapp-webhook/     # Webhook Evolution API
+│       ├── whatsapp-webhook/     # Webhook Evolution / Meta Cloud API
 │       ├── chat-agent/           # Agent IA conversationnel
-│       ├── intervenants/         # CRUD intervenants
+│       ├── intervenants/         # CRUD intervenants + buffer
 │       ├── matieres/             # CRUD matières
-│       ├── besoins/              # CRUD besoins
-│       ├── creneaux/             # CRUD créneaux
+│       ├── besoins/              # CRUD besoins (CM/TD/TP)
+│       ├── creneaux/             # CRUD créneaux + payment_status
 │       ├── disponibilites/       # CRUD dispos + lien public
-│       ├── matching/             # Algorithme de matching
+│       ├── matching/             # Matching avec validation buffer
+│       ├── google-calendar/      # OAuth + sync Google Agenda
+│       ├── calendar/auto-dispos/ # Auto-remplissage dispos depuis Google
+│       ├── recurring-unavailability/ # Règles d'indisponibilité récurrentes
+│       ├── demandes/             # Demandes de disponibilité + réponses
 │       ├── knowledge/            # CRUD + embed + search
 │       ├── conversations/        # Historique messages
+│       ├── etablissements/       # CRUD établissements (super-admin)
 │       ├── import/               # Import CSV
 │       └── cron/reminders/       # Rappels automatiques
 │
 ├── components/
 │   ├── landing/                  # Composants landing page
-│   └── calendar/                 # Calendrier de disponibilités
+│   └── calendar/                 # Calendrier multi-vues (Mois/Semaine/Jour)
 │
 ├── lib/
-│   ├── supabase/                 # Clients Supabase (server + client)
-│   ├── whatsapp/                 # Client Evolution API
+│   ├── supabase/                 # Clients Supabase (server + client + middleware)
+│   ├── whatsapp/                 # Client Evolution API + Meta Cloud API
 │   ├── auth/                     # Mapping phone → email
 │   ├── ai/                       # Mistral client, RAG, agent tools
-│   └── embeddings/               # Pipeline d'embedding + chunker
+│   ├── embeddings/               # Pipeline d'embedding + chunker
+│   ├── matching/                 # Algorithme de matching + validation buffer
+│   ├── genbi/                    # GenBI : routeur sémantique + Wren Engine
+│   ├── hetd.ts                   # Utilitaires HeTD, tarifs officiels, plafond
+│   ├── pdf/                      # Génération PDF (état de service fait)
+│   ├── email/                    # Envoi OTP par email (Resend)
+│   ├── demandes/                 # Logique demandes de disponibilité
+│   └── google-calendar.ts        # Client Google Calendar API
 │
 ├── supabase/
-│   └── migrations/               # Migrations SQL
+│   └── migrations/               # Migrations SQL (11 fichiers)
 │
-├── docker-compose.yml            # Evolution API (dev local)
+├── docker-compose.yml            # Stack dev local
 ├── Dockerfile                    # Build de production multi-stage
-└── middleware.ts                  # Auth middleware Next.js
+└── middleware.ts                  # Auth + protection par rôle
 ```
 
 ---
 
 ## Modules en détail
 
-### Module 1 : Authentification OTP WhatsApp
+### Module 1 : Authentification OTP WhatsApp / Email
 
-L'authentification se fait par **code OTP à 6 chiffres** envoyé via WhatsApp :
+L'authentification se fait par **code OTP à 6 chiffres** envoyé via WhatsApp ou email :
 
 1. L'utilisateur entre son numéro de téléphone
 2. Un code est généré, hashé (bcrypt) et stocké en base
-3. Le code est envoyé via Evolution API sur WhatsApp
+3. Le code est envoyé via **Evolution API** (WhatsApp) ou **Resend** (email)
 4. L'utilisateur saisit le code, qui est vérifié côté serveur
 5. Un utilisateur Supabase Auth est créé ou retrouvé via un mapping `phone → email`
 
@@ -330,13 +373,18 @@ L'authentification se fait par **code OTP à 6 chiffres** envoyé via WhatsApp :
 
 #### Saisie des disponibilités
 
-Les vacataires peuvent déclarer leurs disponibilités de **3 façons** :
+Les vacataires peuvent déclarer leurs disponibilités de **4 façons** :
 
 | Méthode | Description | Accès |
 |---|---|---|
-| **Calendrier web** | Interface drag-and-drop sur un calendrier mensuel | Connecté |
+| **Calendrier web** | Calendrier multi-vues (Mois/Semaine/Jour) avec grille horaire | Connecté |
+| **Google Calendar** | Synchronisation automatique des créneaux libres (toutes les 15 min) | Connecté + OAuth |
 | **Lien public** | Lien unique sans authentification (envoyé par WhatsApp) | Sans auth |
 | **WhatsApp** | Langage naturel : *"libre mardi et jeudi après-midi en mars"* | WhatsApp |
+
+Les vacataires peuvent aussi configurer :
+- **Indisponibilités récurrentes** : règles automatiques par jour, lun–ven, ou tous les jours
+- **Buffer temps de route** : temps de trajet minimum entre deux créneaux (0–180 min)
 
 #### Algorithme de matching
 
@@ -344,10 +392,25 @@ Pour chaque besoin de l'établissement (`besoins_etablissement`), l'algorithme :
 
 1. Recherche les disponibilités qui chevauchent le créneau
 2. Filtre par spécialité/matière si applicable
-3. Retourne les paires `{besoin, intervenant, overlap}`
-4. L'admin confirme le match via l'interface
+3. **Valide le buffer temps de route** : vérifie qu'aucun créneau confirmé n'est trop proche
+4. Retourne les paires `{besoin, intervenant, overlap}`
+5. L'admin confirme le match via l'interface (type CM/TD/TP)
 
-Le créneau confirmé est créé dans la table `creneaux` et une notification WhatsApp est envoyée au vacataire.
+Le créneau confirmé est créé dans la table `creneaux` avec le type de session et une notification WhatsApp est envoyée au vacataire.
+
+#### Suivi HeTD et paiements
+
+Les créneaux sont trackés avec les **taux officiels (janvier 2025)** :
+
+| Type | Multiplicateur HeTD | Tarif brut horaire |
+|---|---|---|
+| **CM** (Cours Magistral) | ×1.5 | 65.25 € |
+| **TD** (Travaux Dirigés) | ×1.0 | 43.50 € |
+| **TP** (Travaux Pratiques) | ×2/3 | 29.00 € |
+
+- Plafond légal : **187 HeTD / an** par vacataire
+- Export PDF « État de service fait » conforme au format universitaire
+- Suivi du paiement session par session
 
 ### Module 3 : Bot WhatsApp
 
@@ -384,14 +447,34 @@ Pipeline complet de Retrieval-Augmented Generation :
 | Page | Description |
 |---|---|
 | `/admin/intervenants` | Liste, ajout, import, activation/désactivation |
+| `/admin/intervenants/[id]` | Fiche vacataire : édition, analytics HeTD, paiements, export PDF |
 | `/admin/matieres` | CRUD des modules d'enseignement |
 | `/admin/besoins` | Calendrier des créneaux à pourvoir + import CSV |
-| `/admin/matching` | Vue split-screen avec animation de matching |
-| `/admin/creneaux` | Planning confirmé (vue calendrier) |
+| `/admin/matching` | Vue split-screen avec animation style Tinder |
+| `/admin/creneaux` | Planning confirmé (calendrier multi-vues) |
 | `/admin/knowledge` | Gestion de la base de connaissances |
 | `/admin/conversations` | Historique des conversations WhatsApp |
 
-### Module 6 : Rappels automatiques
+### Module 6 : Espace vacataire
+
+| Page | Description |
+|---|---|
+| `/vacataire/suivi` | Suivi personnel : heures, HeTD, montants, paiements |
+| `/vacataire/disponibilites` | Saisie des disponibilités depuis l'espace connecté |
+| `/vacataire/demandes` | Réponse aux demandes de disponibilité |
+| `/mes/creneaux` | Planning unifié : créneaux, dispos, Google Calendar, indispos, buffer |
+
+### Module 7 : GenBI — Interrogation en langage naturel
+
+Les administrateurs peuvent interroger la base de données en français :
+
+- *« Combien de sessions ce mois-ci ? »*
+- *« Quels vacataires ont dépassé 100 HeTD ? »*
+- *« Taux de remplissage par matière »*
+
+Le système utilise un **routeur sémantique** pour détecter les questions analytiques, traduit en SQL via **Wren Engine** (ibis-server), et exécute en lecture seule sur PostgreSQL.
+
+### Module 8 : Rappels automatiques
 
 Cron job qui envoie des rappels par WhatsApp :
 
@@ -446,17 +529,21 @@ Consultez [`deploy/DEPLOY.md`](deploy/DEPLOY.md) pour les instructions détaill�
 ```
 etablissements
   ├── intervenants
+  │     ├── buffer_before_minutes      (temps de route)
+  │     ├── google_oauth_tokens        (OAuth Google Calendar)
+  │     └── recurring_unavailability   (règles d'indisponibilité)
   ├── matieres
-  ├── besoins_etablissement
-  ├── creneaux
+  ├── besoins_etablissement            (+ session_type CM/TD/TP)
+  ├── creneaux                         (+ session_type, payment_status)
   │     └── creneaux_changelog
+  ├── demandes_disponibilite           (demandes par WhatsApp/web)
   ├── knowledge_base
   │     └── knowledge_embeddings
   └── conversations
         └── messages
 
 otp_codes (indépendant)
-disponibilites_intervenant (lié à intervenants)
+disponibilites_intervenant (lié à intervenants, source: manual/google_auto)
 ```
 
 Toutes les tables sont protégées par des **Row Level Security (RLS) policies**. Voir [`supabase/migrations/`](supabase/migrations/) pour le schéma complet.
@@ -465,21 +552,29 @@ Toutes les tables sont protégées par des **Row Level Security (RLS) policies**
 
 ## Feuille de route
 
-- [x] Authentification OTP WhatsApp
+- [x] Authentification OTP WhatsApp + Email (Resend)
 - [x] CRUD intervenants, matières, besoins
 - [x] Import CSV des besoins
-- [x] Calendrier de disponibilités (web + lien public)
-- [x] Algorithme de matching
-- [x] Bot WhatsApp avec agent IA
+- [x] Calendrier multi-vues (Mois / Semaine / Jour)
+- [x] Disponibilités (web + lien public + WhatsApp)
+- [x] Synchronisation Google Calendar + auto-remplissage
+- [x] Indisponibilités récurrentes + buffer temps de route
+- [x] Algorithme de matching avec validation buffer
+- [x] Types de session CM / TD / TP + calcul HeTD
+- [x] Suivi des paiements + export PDF état de service fait
+- [x] Demandes de disponibilité (WhatsApp + web)
+- [x] Bot WhatsApp avec agent IA (typing, coches bleues)
 - [x] Base de connaissances RAG
+- [x] GenBI — interrogation en langage naturel
 - [x] Rappels automatiques
-- [x] Dashboard admin et intervenant
+- [x] Dashboard admin enrichi (analytics HeTD, fiche vacataire)
+- [x] Espace vacataire complet (suivi, dispos, demandes)
+- [x] Architecture super-admin multi-établissement
+- [x] Sécurité par rôle (middleware + API)
 - [x] Déploiement Docker
 - [ ] Support multi-langue (EN, ES)
 - [ ] Application mobile (React Native)
-- [ ] Intégration calendrier externe (Google Calendar, Outlook)
-- [ ] Notifications email en complément de WhatsApp
-- [ ] Tableau de bord analytique (statistiques d'utilisation)
+- [ ] Intégration Outlook Calendar
 - [ ] API publique documentée (OpenAPI/Swagger)
 - [ ] Tests automatisés (unit + integration + e2e)
 

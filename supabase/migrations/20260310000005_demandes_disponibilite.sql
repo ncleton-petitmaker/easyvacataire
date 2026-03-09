@@ -26,7 +26,7 @@ ALTER TABLE besoins_etablissement
   DROP CONSTRAINT IF EXISTS besoins_etablissement_status_check;
 ALTER TABLE besoins_etablissement
   ADD CONSTRAINT besoins_etablissement_status_check
-  CHECK (status IN ('ouvert', 'attribue', 'en_attente', 'annule'));
+  CHECK (status IN ('ouvert', 'attribue', 'en_attente', 'annule', 'pourvu'));
 
 -- RLS
 ALTER TABLE demandes_disponibilite ENABLE ROW LEVEL SECURITY;
